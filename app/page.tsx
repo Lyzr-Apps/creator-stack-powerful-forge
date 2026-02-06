@@ -89,7 +89,7 @@ interface CalendarPost {
   date: string
   format: ContentType
   status: 'draft' | 'scheduled' | 'posted'
-  contrail?: string
+  content?: string
   intent?: PublishIntent
   performanceNote?: string
 }
@@ -102,7 +102,7 @@ interface ContextRailState {
 }
 
 interface DirectionLock {
-  contrail: string
+  content: string
   ideaSummary: string
   riskLevel: RiskLevel
   approach: 'safe' | 'push-boundaries' | 'experimental'
@@ -159,7 +159,7 @@ export default function CreatorPilot() {
       example: 'Break down complex ideas in slides'
     }
   ])
-  const [contrail, setContrail] = useState<string>('')
+  const [content, setContent] = useState<string>('')
   const [constraints, setConstraints] = useState({
     format: 'carousel' as ContentType,
     effort: 50, // slider 0-100
@@ -203,7 +203,7 @@ export default function CreatorPilot() {
       date: '2026-02-08',
       format: 'carousel',
       status: 'draft',
-      contrail: 'Saves + Personal Storytelling'
+      content: 'Saves + Personal Storytelling'
     },
     {
       id: '2',
@@ -211,7 +211,7 @@ export default function CreatorPilot() {
       date: '2026-02-10',
       format: 'reel',
       status: 'scheduled',
-      contrail: 'Authority + Honesty'
+      content: 'Authority + Honesty'
     }
   ])
 
@@ -254,15 +254,15 @@ export default function CreatorPilot() {
     }, 2000)
   }
 
-  // Generate contrail from selected insights
+  // Generate content from selected insights
   useEffect(() => {
     const selectedTitles = insights
       .filter(i => i.selected)
       .map(i => i.title.split(' ').slice(0, 3).join(' '))
     if (selectedTitles.length > 0) {
-      setContrail(selectedTitles.join(' + '))
+      setContent(selectedTitles.join(' + '))
     } else {
-      setContrail('')
+      setContent('')
     }
   }, [insights])
 
@@ -449,7 +449,7 @@ export default function CreatorPilot() {
       date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], // 2 days from now
       format: constraints.format,
       status: 'draft',
-      contrail: contrail,
+      content: content,
       intent: publishIntent
     }
     setCalendarPosts([...calendarPosts, newPost])
@@ -459,7 +459,7 @@ export default function CreatorPilot() {
   // Proceed to Direction Lock
   const proceedToDirectionLock = (idea: IdeaCard) => {
     setDirectionLock({
-      contrail: contrail,
+      content: content,
       ideaSummary: idea.title,
       riskLevel: idea.effortLevel as RiskLevel,
       approach: 'safe'
@@ -818,7 +818,7 @@ export default function CreatorPilot() {
             onClick={() => setCurrentScreen('insight-canvas')}
             className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-lg px-12 py-6 rounded-xl shadow-lg shadow-purple-900/50"
           >
-            Set Your Contrail
+            Set Your Content
           </Button>
           <Button
             onClick={() => {
@@ -911,19 +911,19 @@ export default function CreatorPilot() {
             ))}
           </div>
 
-          {/* CENTER: Contrail Canvas */}
+          {/* CENTER: Content Canvas */}
           <div className="lg:col-span-4">
             <Card className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 border-purple-700/50 backdrop-blur sticky top-8">
               <CardHeader>
-                <CardTitle className="text-white text-center">Your Contrail</CardTitle>
+                <CardTitle className="text-white text-center">Your Content</CardTitle>
               </CardHeader>
               <CardContent>
-                {contrail ? (
+                {content ? (
                   <div className="space-y-4">
                     <div className="bg-slate-900/50 rounded-xl p-6 text-center">
                       <p className="text-sm text-purple-300 mb-2">You're optimizing for:</p>
                       <p className="text-2xl font-bold text-white leading-relaxed">
-                        {contrail}
+                        {content}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 justify-center">
@@ -937,7 +937,7 @@ export default function CreatorPilot() {
                 ) : (
                   <div className="text-center py-12">
                     <FiTarget className="mx-auto text-5xl text-slate-600 mb-4" />
-                    <p className="text-slate-400">Select insights to build your contrail</p>
+                    <p className="text-slate-400">Select insights to build your content</p>
                   </div>
                 )}
               </CardContent>
@@ -1065,8 +1065,8 @@ export default function CreatorPilot() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">Idea Board</h1>
-            {contrail && (
-              <p className="text-sm text-purple-300">Optimized for: {contrail}</p>
+            {content && (
+              <p className="text-sm text-purple-300">Optimized for: {content}</p>
             )}
           </div>
           <Button
@@ -1404,8 +1404,8 @@ export default function CreatorPilot() {
               <>
                 <div className="space-y-4">
                   <div className="bg-purple-900/20 rounded-lg p-4">
-                    <p className="text-xs text-purple-300 mb-1">Your Contrail:</p>
-                    <p className="text-sm text-white font-medium">{directionLock.contrail}</p>
+                    <p className="text-xs text-purple-300 mb-1">Your Content:</p>
+                    <p className="text-sm text-white font-medium">{directionLock.content}</p>
                   </div>
 
                   <div className="bg-slate-800/50 rounded-lg p-4">
@@ -1453,7 +1453,7 @@ export default function CreatorPilot() {
                     const idea: IdeaCard = {
                       id: '1',
                       title: directionLock.ideaSummary,
-                      whyItWorks: `Optimized for ${directionLock.contrail}`,
+                      whyItWorks: `Optimized for ${directionLock.content}`,
                       hookPreview: '',
                       effortLevel: directionLock.riskLevel as EffortLevel,
                       basedOn: [],
@@ -1719,7 +1719,7 @@ export default function CreatorPilot() {
   const PreFlightScreen = () => {
     const checklistItems = [
       { label: 'Hook appears in first 2 seconds', checked: draft.hook.split(' ').length <= 7 },
-      { label: 'Matches your contrail', checked: contrail.length > 0 },
+      { label: 'Matches your content', checked: content.length > 0 },
       { label: 'Tone consistent with past wins', checked: matchMyPosts },
       { label: 'CTA present', checked: draft.cta.length > 0 }
     ]
@@ -1849,8 +1849,8 @@ export default function CreatorPilot() {
                       <span className="text-xs text-slate-500">{post.date}</span>
                     </div>
                     <h3 className="text-white font-medium mb-1">{post.title}</h3>
-                    {post.contrail && (
-                      <p className="text-sm text-slate-400">Strategy: {post.contrail}</p>
+                    {post.content && (
+                      <p className="text-sm text-slate-400">Strategy: {post.content}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -1887,7 +1887,7 @@ export default function CreatorPilot() {
           </div>
           <h1 className="text-4xl font-bold text-white mb-4">Session Complete</h1>
           <p className="text-xl text-slate-300 mb-2">We'll track how this performs</p>
-          <p className="text-sm text-slate-500">Your intent and contrail are saved for analysis</p>
+          <p className="text-sm text-slate-500">Your intent and content are saved for analysis</p>
         </div>
 
         <div className="space-y-3">
