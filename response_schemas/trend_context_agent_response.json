@@ -1,0 +1,58 @@
+{
+  "agent_name": "Trend Context Agent",
+  "agent_id": "6985878307ec48e3dc90a194",
+  "agent_purpose": "Contextual trend research assistant that matches current trends to creator's past successful content with assistive positioning",
+  "description": "Provides contextual trend matching only when relevant to conversation, always assistive and acknowledges uncertainty",
+  "response_schema": {
+    "status": "string",
+    "result": {
+      "trend_name": "string",
+      "trend_description": "string",
+      "relevance_to_creator": "string",
+      "past_winner_match": "string",
+      "actionable_insight": "string",
+      "confidence_level": "string",
+      "uncertainty_note": "string"
+    },
+    "metadata": {
+      "agent_name": "string",
+      "timestamp": "string"
+    }
+  },
+  "example_response": {
+    "status": "error",
+    "result": {
+      "trend_name": "",
+      "trend_description": "",
+      "relevance_to_creator": "",
+      "past_winner_match": "",
+      "actionable_insight": "",
+      "confidence_level": "low",
+      "uncertainty_note": "Without specific details on the creator's past content or storytelling style, it's challenging to provide targeted trend insights."
+    },
+    "metadata": {
+      "agent_name": "Trend Context Agent",
+      "timestamp": "2023-11-02T13:05:00Z"
+    }
+  },
+  "is_actual_tested": true,
+  "test_timestamp": "2026-02-06T06:19:58.136770",
+  "test_message_used": "Hello, provide a sample response",
+  "actual_test_response": {
+    "status": "error",
+    "result": {
+      "trend_name": "",
+      "trend_description": "",
+      "relevance_to_creator": "",
+      "past_winner_match": "",
+      "actionable_insight": "",
+      "confidence_level": "low",
+      "uncertainty_note": "Without specific details on the creator's past content or storytelling style, it's challenging to provide targeted trend insights."
+    },
+    "metadata": {
+      "agent_name": "Trend Context Agent",
+      "timestamp": "2023-11-02T13:05:00Z"
+    }
+  },
+  "test_passed": true
+}

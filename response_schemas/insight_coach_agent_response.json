@@ -1,0 +1,52 @@
+{
+  "agent_name": "Insight Coach Agent",
+  "agent_id": "69858743e17e33c11eed19b3",
+  "agent_purpose": "Instagram performance analyst delivering identity-level insights using Observation\u2192Explanation\u2192Suggestion flow with emotional language",
+  "description": "Delivers identity-level insights about Instagram content performance using observation-first approach with probabilistic language",
+  "response_schema": {
+    "status": "string",
+    "result": {
+      "observation": "string",
+      "explanation": "string",
+      "suggestion": "null",
+      "emotional_insight": "string",
+      "confidence_level": "string"
+    },
+    "metadata": {
+      "agent_name": "string",
+      "timestamp": "string"
+    }
+  },
+  "example_response": {
+    "status": "success",
+    "result": {
+      "observation": "Your carousel about your journey received 3x more engagement than your usual posts.",
+      "explanation": "This likely occurred because personal stories and narratives often resonate more deeply with audiences. Carousels allow users to swipe through multiple images, creating a more interactive experience. It's possible that the story was relatable or inspiring, prompting viewers to engage more through likes, comments, and shares. Additionally, the visual aspect of a journey can capture attention in a way that single posts may not.",
+      "suggestion": null,
+      "emotional_insight": "Sharing personal journeys creates a sense of connection and authenticity with your audience. It invites them into your world, fostering empathy and deeper emotional bonds, which can lead to sustained interest and loyalty.",
+      "confidence_level": "medium"
+    },
+    "metadata": {
+      "agent_name": "Insight Coach Agent",
+      "timestamp": "2023-11-05T15:38:00Z"
+    }
+  },
+  "is_actual_tested": true,
+  "test_timestamp": "2026-02-06T06:19:33.258835",
+  "test_message_used": "Hello, provide a sample response",
+  "actual_test_response": {
+    "status": "success",
+    "result": {
+      "observation": "Your carousel about your journey received 3x more engagement than your usual posts.",
+      "explanation": "This likely occurred because personal stories and narratives often resonate more deeply with audiences. Carousels allow users to swipe through multiple images, creating a more interactive experience. It's possible that the story was relatable or inspiring, prompting viewers to engage more through likes, comments, and shares. Additionally, the visual aspect of a journey can capture attention in a way that single posts may not.",
+      "suggestion": null,
+      "emotional_insight": "Sharing personal journeys creates a sense of connection and authenticity with your audience. It invites them into your world, fostering empathy and deeper emotional bonds, which can lead to sustained interest and loyalty.",
+      "confidence_level": "medium"
+    },
+    "metadata": {
+      "agent_name": "Insight Coach Agent",
+      "timestamp": "2023-11-05T15:38:00Z"
+    }
+  },
+  "test_passed": true
+}

@@ -1,0 +1,81 @@
+{
+  "agent_name": "Voice Writer Agent",
+  "agent_id": "6985876eb90162af337b1ea1",
+  "agent_purpose": "Content writer that generates Instagram captions, scripts, and hooks matching the creator's authentic voice using voice presets",
+  "description": "Generates captions/scripts/hooks using creator's saved voice preset with trait sliders for casualness, boldness, and professionalism",
+  "response_schema": {
+    "status": "string",
+    "result": {
+      "content_type": "string",
+      "generated_content": "string",
+      "hook": "string",
+      "body": "string",
+      "cta": "string",
+      "voice_parameters_used": {
+        "casualness": "number",
+        "boldness": "number",
+        "emoji_usage": "string",
+        "professionalism": "number"
+      },
+      "variations": [
+        "string"
+      ]
+    },
+    "metadata": {
+      "agent_name": "string",
+      "timestamp": "string"
+    }
+  },
+  "example_response": {
+    "status": "success",
+    "result": {
+      "content_type": "caption",
+      "generated_content": "Mornings set the vibe for the entire day! \u2600\ufe0f Whether it's coffee, yoga, or just lounging with a good book, find what sparks joy and roll with it. \ud83c\udf3f\u2728 Ready to conquer the day? Let's do this! \ud83d\udcaa",
+      "hook": "Mornings set the vibe for the entire day! \u2600\ufe0f",
+      "body": "Whether it's coffee, yoga, or just lounging with a good book, find what sparks joy and roll with it. \ud83c\udf3f\u2728",
+      "cta": "Ready to conquer the day? Let's do this! \ud83d\udcaa",
+      "voice_parameters_used": {
+        "casualness": 7,
+        "boldness": 5,
+        "emoji_usage": "moderate",
+        "professionalism": 4
+      },
+      "variations": [
+        "Start your morning right with a routine that makes you shine! \u2615\ufe0f\ud83c\udf05 What's your go-to ritual? #MorningMagic",
+        "Rise, shine, and make the most of your morning with a routine that energizes! \ud83c\udf1e\ud83d\udcda Share your secret to a great morning! \ud83c\udf3f"
+      ]
+    },
+    "metadata": {
+      "agent_name": "Voice Writer Agent",
+      "timestamp": "2023-10-01T10:00:00Z"
+    }
+  },
+  "is_actual_tested": true,
+  "test_timestamp": "2026-02-06T06:19:51.999933",
+  "test_message_used": "Hello, provide a sample response",
+  "actual_test_response": {
+    "status": "success",
+    "result": {
+      "content_type": "caption",
+      "generated_content": "Mornings set the vibe for the entire day! \u2600\ufe0f Whether it's coffee, yoga, or just lounging with a good book, find what sparks joy and roll with it. \ud83c\udf3f\u2728 Ready to conquer the day? Let's do this! \ud83d\udcaa",
+      "hook": "Mornings set the vibe for the entire day! \u2600\ufe0f",
+      "body": "Whether it's coffee, yoga, or just lounging with a good book, find what sparks joy and roll with it. \ud83c\udf3f\u2728",
+      "cta": "Ready to conquer the day? Let's do this! \ud83d\udcaa",
+      "voice_parameters_used": {
+        "casualness": 7,
+        "boldness": 5,
+        "emoji_usage": "moderate",
+        "professionalism": 4
+      },
+      "variations": [
+        "Start your morning right with a routine that makes you shine! \u2615\ufe0f\ud83c\udf05 What's your go-to ritual? #MorningMagic",
+        "Rise, shine, and make the most of your morning with a routine that energizes! \ud83c\udf1e\ud83d\udcda Share your secret to a great morning! \ud83c\udf3f"
+      ]
+    },
+    "metadata": {
+      "agent_name": "Voice Writer Agent",
+      "timestamp": "2023-10-01T10:00:00Z"
+    }
+  },
+  "test_passed": true
+}

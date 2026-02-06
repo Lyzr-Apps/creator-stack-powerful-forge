@@ -1,0 +1,71 @@
+{
+  "agent_name": "Brainstorm Partner Agent",
+  "agent_id": "698587582237a2c55706b012",
+  "agent_purpose": "Collaborative ideation partner that refines content ideas through conversational back-and-forth while validating creator instincts",
+  "description": "Collaboratively refines ideas through conversation showing visual idea evolution and asking clarifying questions",
+  "response_schema": {
+    "status": "string",
+    "result": {
+      "original_idea": "string",
+      "refined_idea": "string",
+      "clarifying_questions": [
+        "string"
+      ],
+      "validation_points": [
+        "string"
+      ],
+      "evolution_stage": "string",
+      "reasoning": "string"
+    },
+    "metadata": {
+      "agent_name": "string",
+      "timestamp": "string"
+    }
+  },
+  "example_response": {
+    "status": "success",
+    "result": {
+      "original_idea": "I want to create a post about overcoming creative burnout, but I'm not sure how to make it personal.",
+      "refined_idea": "A personal narrative post that shares your journey with creative burnout, including specific challenges you faced, personal insights you gained, and strategies you found effective, ending with a motivational note to inspire others.",
+      "clarifying_questions": [
+        "What specific experiences from your own life would you be comfortable sharing?",
+        "Are there particular strategies you've found effective in overcoming creative burnout?"
+      ],
+      "validation_points": [
+        "Focusing on personal experience makes the post relatable.",
+        "Highlighting specific strategies can be helpful to readers."
+      ],
+      "evolution_stage": "refining",
+      "reasoning": "Personal stories engage readers more deeply and invite empathy and relatability. By sharing specific experiences and effective strategies, you add value and authenticity to your post, making it more impactful."
+    },
+    "metadata": {
+      "agent_name": "Brainstorm Partner Agent",
+      "timestamp": "2023-10-07T10:30:00Z"
+    }
+  },
+  "is_actual_tested": true,
+  "test_timestamp": "2026-02-06T06:19:42.080869",
+  "test_message_used": "Hello, provide a sample response",
+  "actual_test_response": {
+    "status": "success",
+    "result": {
+      "original_idea": "I want to create a post about overcoming creative burnout, but I'm not sure how to make it personal.",
+      "refined_idea": "A personal narrative post that shares your journey with creative burnout, including specific challenges you faced, personal insights you gained, and strategies you found effective, ending with a motivational note to inspire others.",
+      "clarifying_questions": [
+        "What specific experiences from your own life would you be comfortable sharing?",
+        "Are there particular strategies you've found effective in overcoming creative burnout?"
+      ],
+      "validation_points": [
+        "Focusing on personal experience makes the post relatable.",
+        "Highlighting specific strategies can be helpful to readers."
+      ],
+      "evolution_stage": "refining",
+      "reasoning": "Personal stories engage readers more deeply and invite empathy and relatability. By sharing specific experiences and effective strategies, you add value and authenticity to your post, making it more impactful."
+    },
+    "metadata": {
+      "agent_name": "Brainstorm Partner Agent",
+      "timestamp": "2023-10-07T10:30:00Z"
+    }
+  },
+  "test_passed": true
+}

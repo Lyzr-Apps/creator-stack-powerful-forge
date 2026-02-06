@@ -1,0 +1,123 @@
+{
+  "workflow": {
+    "name": "CreatorPilot AI Content Strategist",
+    "description": "Manager-Subagent architecture for Instagram content strategy with intent detection and intelligent routing",
+    "nodes": [
+      {
+        "id": "input_node",
+        "type": "Input",
+        "label": "User Conversation",
+        "nodeCategory": "input"
+      },
+      {
+        "id": "creator_partner_manager",
+        "type": "Agent",
+        "label": "Creator Partner Manager",
+        "nodeCategory": "agent",
+        "agent_id": "69858798094c8b2d4207dcba",
+        "agent_name": "Creator Partner Manager",
+        "agent_role": "Intent detection and intelligent routing manager",
+        "provider": "OpenAI",
+        "model": "gpt-4o",
+        "temperature": 0.3,
+        "top_p": 1
+      },
+      {
+        "id": "insight_coach_agent",
+        "type": "Agent",
+        "label": "Insight Coach Agent",
+        "nodeCategory": "agent",
+        "agent_id": "69858743e17e33c11eed19b3",
+        "agent_name": "Insight Coach Agent",
+        "agent_role": "Instagram performance analyst and insight provider",
+        "provider": "OpenAI",
+        "model": "gpt-4o",
+        "temperature": 0.4,
+        "top_p": 1
+      },
+      {
+        "id": "brainstorm_partner_agent",
+        "type": "Agent",
+        "label": "Brainstorm Partner Agent",
+        "nodeCategory": "agent",
+        "agent_id": "698587582237a2c55706b012",
+        "agent_name": "Brainstorm Partner Agent",
+        "agent_role": "Collaborative ideation and refinement partner",
+        "provider": "OpenAI",
+        "model": "gpt-4o",
+        "temperature": 0.7,
+        "top_p": 0.95
+      },
+      {
+        "id": "voice_writer_agent",
+        "type": "Agent",
+        "label": "Voice Writer Agent",
+        "nodeCategory": "agent",
+        "agent_id": "6985876eb90162af337b1ea1",
+        "agent_name": "Voice Writer Agent",
+        "agent_role": "Content writer matching creator's authentic voice",
+        "provider": "OpenAI",
+        "model": "gpt-4o",
+        "temperature": 0.7,
+        "top_p": 0.95
+      },
+      {
+        "id": "trend_context_agent",
+        "type": "Agent",
+        "label": "Trend Context Agent",
+        "nodeCategory": "agent",
+        "agent_id": "6985878307ec48e3dc90a194",
+        "agent_name": "Trend Context Agent",
+        "agent_role": "Contextual trend research assistant",
+        "provider": "OpenAI",
+        "model": "gpt-4o",
+        "temperature": 0.2,
+        "top_p": 1
+      },
+      {
+        "id": "output_node",
+        "type": "Output",
+        "label": "Response to Creator",
+        "nodeCategory": "end"
+      }
+    ],
+    "edges": [
+      {
+        "source": "input_node",
+        "target": "creator_partner_manager"
+      },
+      {
+        "source": "creator_partner_manager",
+        "target": "insight_coach_agent"
+      },
+      {
+        "source": "creator_partner_manager",
+        "target": "brainstorm_partner_agent"
+      },
+      {
+        "source": "creator_partner_manager",
+        "target": "voice_writer_agent"
+      },
+      {
+        "source": "creator_partner_manager",
+        "target": "trend_context_agent"
+      },
+      {
+        "source": "insight_coach_agent",
+        "target": "output_node"
+      },
+      {
+        "source": "brainstorm_partner_agent",
+        "target": "output_node"
+      },
+      {
+        "source": "voice_writer_agent",
+        "target": "output_node"
+      },
+      {
+        "source": "trend_context_agent",
+        "target": "output_node"
+      }
+    ]
+  }
+}

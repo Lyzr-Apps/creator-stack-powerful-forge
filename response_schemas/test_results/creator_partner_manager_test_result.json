@@ -1,0 +1,24 @@
+{
+  "agent_name": "Creator Partner Manager",
+  "agent_id": "69858798094c8b2d4207dcba",
+  "test_message": "I want to understand why my last carousel performed so well",
+  "expected_purpose": "Manager that routes user intent to specialist agents",
+  "timestamp": "2026-02-06T06:19:25.529799",
+  "is_valid_json": true,
+  "validation_errors": [],
+  "actual_response": {
+    "status": "success",
+    "result": {
+      "detected_intent": "insight",
+      "routed_to_agent": "Insight Coach",
+      "context_summary": "User is asking why their last carousel performed well.",
+      "routing_confidence": "high",
+      "user_message_interpretation": "The user wants performance analysis on the most recent carousel to understand the factors contributing to its success."
+    },
+    "metadata": {
+      "agent_name": "Creator Partner Manager",
+      "timestamp": "2023-10-11T12:00:00Z"
+    }
+  },
+  "raw_response": "{\n  \"status\": \"success\",\n  \"result\": {\n    \"detected_intent\": \"insight\",\n    \"routed_to_agent\": \"Insight Coach\",\n    \"context_summary\": \"User is asking why their last carousel performed well.\",\n    \"routing_confidence\": \"high\",\n    \"user_message_interpretation\": \"The user wants performance analysis on the most recent carousel to understand the factors contributing to its success.\"\n  },\n  \"metadata\": {\n    \"agent_name\": \"Creator Partner Manager\",\n    \"timestamp\": \"2023-10-11T12:00:00Z\"\n  }\n}"
+}

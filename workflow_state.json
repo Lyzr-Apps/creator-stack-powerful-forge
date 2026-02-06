@@ -1,0 +1,47 @@
+{
+  "workflow_name": "CreatorPilot AI Content Strategist",
+  "architecture": "Manager-Subagent",
+  "created_at": "2026-02-06",
+  "agents": {
+    "manager": {
+      "agent_id": "69858798094c8b2d4207dcba",
+      "name": "Creator Partner Manager",
+      "role": "Intent detection and intelligent routing manager",
+      "node_id": "creator_partner_manager"
+    },
+    "sub_agents": [
+      {
+        "agent_id": "69858743e17e33c11eed19b3",
+        "name": "Insight Coach Agent",
+        "role": "Instagram performance analyst and insight provider",
+        "node_id": "insight_coach_agent"
+      },
+      {
+        "agent_id": "698587582237a2c55706b012",
+        "name": "Brainstorm Partner Agent",
+        "role": "Collaborative ideation and refinement partner",
+        "node_id": "brainstorm_partner_agent"
+      },
+      {
+        "agent_id": "6985876eb90162af337b1ea1",
+        "name": "Voice Writer Agent",
+        "role": "Content writer matching creator's authentic voice",
+        "node_id": "voice_writer_agent"
+      },
+      {
+        "agent_id": "6985878307ec48e3dc90a194",
+        "name": "Trend Context Agent",
+        "role": "Contextual trend research assistant",
+        "node_id": "trend_context_agent"
+      }
+    ]
+  },
+  "workflow_flow": "Input → Manager (Intent Detection) → [Insight Coach | Brainstorm Partner | Voice Writer | Trend Context] → Output",
+  "response_schemas": [
+    "response_schemas/creator_partner_manager_response.json",
+    "response_schemas/insight_coach_agent_response.json",
+    "response_schemas/brainstorm_partner_agent_response.json",
+    "response_schemas/voice_writer_agent_response.json",
+    "response_schemas/trend_context_agent_response.json"
+  ]
+}

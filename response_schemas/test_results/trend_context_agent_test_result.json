@@ -1,0 +1,26 @@
+{
+  "agent_name": "Trend Context Agent",
+  "agent_id": "6985878307ec48e3dc90a194",
+  "test_message": "What Instagram trends right now would match my storytelling style?",
+  "expected_purpose": "Provides contextual trend matching to creator's content style",
+  "timestamp": "2026-02-06T06:19:58.135780",
+  "is_valid_json": true,
+  "validation_errors": [],
+  "actual_response": {
+    "status": "error",
+    "result": {
+      "trend_name": "",
+      "trend_description": "",
+      "relevance_to_creator": "",
+      "past_winner_match": "",
+      "actionable_insight": "",
+      "confidence_level": "low",
+      "uncertainty_note": "Without specific details on the creator's past content or storytelling style, it's challenging to provide targeted trend insights."
+    },
+    "metadata": {
+      "agent_name": "Trend Context Agent",
+      "timestamp": "2023-11-02T13:05:00Z"
+    }
+  },
+  "raw_response": "{\n  \"status\": \"error\",\n  \"result\": {\n    \"trend_name\": \"\",\n    \"trend_description\": \"\",\n    \"relevance_to_creator\": \"\",\n    \"past_winner_match\": \"\",\n    \"actionable_insight\": \"\",\n    \"confidence_level\": \"low\",\n    \"uncertainty_note\": \"Without specific details on the creator's past content or storytelling style, it's challenging to provide targeted trend insights.\"\n  },\n  \"metadata\": {\n    \"agent_name\": \"Trend Context Agent\",\n    \"timestamp\": \"2023-11-02T13:05:00Z\"\n  }\n}"
+}
