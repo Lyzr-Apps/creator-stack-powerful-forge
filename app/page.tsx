@@ -40,7 +40,7 @@ const AGENT_IDS = {
 }
 
 // Types
-type Screen = 'onboarding' | 'dashboard' | 'insight-canvas' | 'idea-board' | 'draft-editor' | 'content-calendar'
+type Screen = 'onboarding' | 'dashboard' | 'insight-canvas' | 'idea-board' | 'direction-lock' | 'draft-editor' | 'pre-flight' | 'session-complete' | 'content-calendar'
 type OnboardingStep = 1 | 2 | 3
 type Platform = 'instagram' | 'tiktok' | 'youtube'
 type CreatorType = 'creator' | 'educator' | 'brand' | 'manager'
@@ -48,6 +48,9 @@ type Goal = 'reach' | 'saves' | 'consistency' | 'brand-deals'
 type ContentType = 'reel' | 'carousel' | 'story'
 type EffortLevel = 'low' | 'medium' | 'high'
 type Tone = 'raw' | 'polished' | 'bold'
+type RiskLevel = 'low' | 'medium' | 'high'
+type PublishIntent = 'teach' | 'connect' | 'trigger-conversation' | 'test-new'
+type ContextAction = 'why-this-works' | 'stress-test' | 'make-riskier' | 'make-safer'
 
 interface InsightCard {
   id: string
@@ -87,6 +90,28 @@ interface CalendarPost {
   format: ContentType
   status: 'draft' | 'scheduled' | 'posted'
   contrail?: string
+  intent?: PublishIntent
+  performanceNote?: string
+}
+
+interface ContextRailState {
+  isOpen: boolean
+  action: ContextAction | null
+  response: string
+  selectedIdea: IdeaCard | null
+}
+
+interface DirectionLock {
+  contrail: string
+  ideaSummary: string
+  riskLevel: RiskLevel
+  approach: 'safe' | 'push-boundaries' | 'experimental'
+}
+
+interface ConfidenceIndicators {
+  hookStrength: number // 1-4
+  clarity: number // 1-4
+  savePotential: number // 1-4
 }
 
 export default function CreatorPilot() {
@@ -189,6 +214,35 @@ export default function CreatorPilot() {
       contrail: 'Authority + Honesty'
     }
   ])
+
+  // Context Rail State (for Idea Exploration)
+  const [contextRail, setContextRail] = useState<ContextRailState>({
+    isOpen: false,
+    action: null,
+    response: '',
+    selectedIdea: null
+  })
+
+  // Direction Lock State
+  const [directionLock, setDirectionLock] = useState<DirectionLock | null>(null)
+
+  // Pre-Flight State
+  const [publishIntent, setPublishIntent] = useState<PublishIntent>('teach')
+
+  // Confidence Indicators State
+  const [confidence, setConfidence] = useState<ConfidenceIndicators>({
+    hookStrength: 3,
+    clarity: 3,
+    savePotential: 3
+  })
+
+  // Performance Reflection State
+  const [showReflection, setShowReflection] = useState(false)
+  const [lastPostPerformance, setLastPostPerformance] = useState({
+    success: true,
+    learning: 'Opening with uncertainty created more engagement than expected',
+    suggestion: 'Try starting with a question next time'
+  })
 
   // Complete onboarding
   const completeOnboarding = () => {
@@ -340,18 +394,77 @@ export default function CreatorPilot() {
     setLoading(false)
   }
 
-  // Save to calendar
-  const saveToCalendar = () => {
+  // Context Rail Actions
+  const handleContextAction = async (action: ContextAction, idea: IdeaCard) => {
+    setContextRail({ ...contextRail, isOpen: true, action, selectedIdea: idea })
+    setLoading(true)
+
+    try {
+      let prompt = ''
+      switch (action) {
+        case 'why-this-works':
+          prompt = `Explain in one sentence why this content idea works: "${idea.title}". Based on: ${idea.whyItWorks}`
+          break
+        case 'stress-test':
+          prompt = `Stress-test this content idea: "${idea.title}". Identify one potential weakness and suggest how to fix it. Keep response to 2 sentences max.`
+          break
+        case 'make-riskier':
+          prompt = `Make this content idea bolder and riskier: "${idea.title}". Suggest one way to push boundaries. One sentence.`
+          break
+        case 'make-safer':
+          prompt = `Make this content idea safer and more approachable: "${idea.title}". Suggest one adjustment. One sentence.`
+          break
+      }
+
+      const response = await callAIAgent(AGENT_IDS.BRAINSTORM_PARTNER, prompt)
+
+      if (response.status === 'success' && response.result) {
+        const result = response.result as any
+        const aiResponse = result.reasoning || result.refined_idea || 'This idea aligns with proven patterns from your top-performing content.'
+        setContextRail({ ...contextRail, isOpen: true, action, selectedIdea: idea, response: aiResponse })
+      }
+    } catch (error) {
+      console.error('Error in context action:', error)
+    }
+    setLoading(false)
+  }
+
+  // Update confidence indicators based on draft
+  useEffect(() => {
+    const hookLength = draft.hook.split(' ').length
+    const totalLength = (draft.hook + draft.body + draft.cta).length
+
+    setConfidence({
+      hookStrength: hookLength <= 7 && hookLength > 0 ? 4 : hookLength <= 10 ? 3 : 2,
+      clarity: totalLength > 100 && totalLength < 1000 ? 4 : totalLength > 50 ? 3 : 2,
+      savePotential: draft.hook.length > 0 && draft.body.length > 0 ? 3 : 2
+    })
+  }, [draft])
+
+  // Save to calendar with intent
+  const saveToCalendarWithIntent = () => {
     const newPost: CalendarPost = {
       id: Date.now().toString(),
       title: draft.hook.substring(0, 50) + '...',
       date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], // 2 days from now
       format: constraints.format,
       status: 'draft',
-      contrail: contrail
+      contrail: contrail,
+      intent: publishIntent
     }
     setCalendarPosts([...calendarPosts, newPost])
-    setCurrentScreen('content-calendar')
+    setCurrentScreen('session-complete')
+  }
+
+  // Proceed to Direction Lock
+  const proceedToDirectionLock = (idea: IdeaCard) => {
+    setDirectionLock({
+      contrail: contrail,
+      ideaSummary: idea.title,
+      riskLevel: idea.effortLevel as RiskLevel,
+      approach: 'safe'
+    })
+    setCurrentScreen('direction-lock')
   }
 
   // ONBOARDING SCREEN
@@ -558,6 +671,63 @@ export default function CreatorPilot() {
             Calendar
           </Button>
         </div>
+
+        {/* Performance Reflection - Shows after post publishes */}
+        {showReflection && (
+          <Card className={`border mb-8 backdrop-blur ${
+            lastPostPerformance.success
+              ? 'bg-green-900/20 border-green-700/50'
+              : 'bg-yellow-900/20 border-yellow-700/50'
+          }`}>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  {lastPostPerformance.success ? (
+                    <FiTrendingUp className="text-green-400 text-2xl" />
+                  ) : (
+                    <FiTrendingDown className="text-yellow-400 text-2xl" />
+                  )}
+                  <div>
+                    <CardTitle className={`${lastPostPerformance.success ? 'text-green-100' : 'text-yellow-100'}`}>
+                      {lastPostPerformance.success ? 'Your last post performed well' : 'Your last post underperformed'}
+                    </CardTitle>
+                    <p className="text-sm text-slate-400 mt-1">Based on your usual metrics</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowReflection(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <FiX />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-slate-900/50 rounded-lg p-4">
+                <p className="text-xs text-slate-400 mb-1">What we learned:</p>
+                <p className="text-white">{lastPostPerformance.learning}</p>
+              </div>
+              <div className="bg-slate-900/50 rounded-lg p-4">
+                <p className="text-xs text-slate-400 mb-1">Suggestion:</p>
+                <p className="text-white">{lastPostPerformance.suggestion}</p>
+              </div>
+              <Button
+                onClick={() => {
+                  // Apply learning: pre-fill insights based on learning
+                  setInsights(insights.map(i => ({
+                    ...i,
+                    selected: i.title.toLowerCase().includes('question') || i.title.toLowerCase().includes('uncertainty')
+                  })))
+                  setShowReflection(false)
+                  setCurrentScreen('insight-canvas')
+                }}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              >
+                Apply This Learning
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Daily Insight - Hero */}
         <Card className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 border-purple-700/50 mb-8 backdrop-blur">
@@ -982,7 +1152,7 @@ export default function CreatorPilot() {
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => turnIntoDraft(idea)}
+                            onClick={() => proceedToDirectionLock(idea)}
                             className="bg-purple-600 hover:bg-purple-700 text-white text-xs"
                           >
                             Turn into Draft
@@ -1132,6 +1302,175 @@ export default function CreatorPilot() {
             </div>
           )}
         </div>
+
+        {/* Context Rail - Bottom of Screen */}
+        <div className={`fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 backdrop-blur transition-all ${contextRail.isOpen ? 'h-48' : 'h-14'}`}>
+          {!contextRail.isOpen ? (
+            <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+              <p className="text-sm text-slate-400">Want to explore an angle deeper?</p>
+              <div className="flex gap-2">
+                {ideas.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => handleContextAction('why-this-works', ideas[0])}
+                      className="text-xs px-3 py-1.5 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-300 hover:text-purple-200 transition-colors"
+                    >
+                      Ask "Why this works"
+                    </button>
+                    <button
+                      onClick={() => handleContextAction('stress-test', ideas[0])}
+                      className="text-xs px-3 py-1.5 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-300 hover:text-purple-200 transition-colors"
+                    >
+                      Stress-test this idea
+                    </button>
+                    <button
+                      onClick={() => handleContextAction('make-riskier', ideas[0])}
+                      className="text-xs px-3 py-1.5 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-300 hover:text-purple-200 transition-colors"
+                    >
+                      Make it riskier
+                    </button>
+                    <button
+                      onClick={() => handleContextAction('make-safer', ideas[0])}
+                      className="text-xs px-3 py-1.5 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-300 hover:text-purple-200 transition-colors"
+                    >
+                      Make it safer
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-7xl mx-auto px-6 py-4 h-48 flex flex-col">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-purple-300 mb-2">
+                    {contextRail.action === 'why-this-works' && 'Why this works'}
+                    {contextRail.action === 'stress-test' && 'Stress Test'}
+                    {contextRail.action === 'make-riskier' && 'Make it Riskier'}
+                    {contextRail.action === 'make-safer' && 'Make it Safer'}
+                  </p>
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    {loading ? 'Thinking...' : contextRail.response}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setContextRail({ ...contextRail, isOpen: false })}
+                  className="text-slate-400 hover:text-white ml-4"
+                >
+                  <FiX />
+                </button>
+              </div>
+              {!loading && contextRail.selectedIdea && (
+                <div className="mt-auto flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setContextRail({ ...contextRail, isOpen: false })
+                      if (contextRail.selectedIdea) {
+                        proceedToDirectionLock(contextRail.selectedIdea)
+                      }
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                  >
+                    Proceed to Draft
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setContextRail({ ...contextRail, isOpen: false })}
+                    className="border-slate-700 text-slate-300 text-xs"
+                  >
+                    Keep Exploring
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  // DIRECTION LOCK SCREEN
+  const DirectionLockScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 flex items-center justify-center px-6">
+      <div className="max-w-md w-full">
+        <Card className="bg-slate-900/80 border-purple-700/50 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-white text-center text-xl">Lock Direction?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {directionLock && (
+              <>
+                <div className="space-y-4">
+                  <div className="bg-purple-900/20 rounded-lg p-4">
+                    <p className="text-xs text-purple-300 mb-1">Your Contrail:</p>
+                    <p className="text-sm text-white font-medium">{directionLock.contrail}</p>
+                  </div>
+
+                  <div className="bg-slate-800/50 rounded-lg p-4">
+                    <p className="text-xs text-slate-400 mb-1">Idea Summary:</p>
+                    <p className="text-sm text-white">{directionLock.ideaSummary}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-400">Risk Level:</p>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      directionLock.riskLevel === 'low'
+                        ? 'bg-green-900/30 text-green-300'
+                        : directionLock.riskLevel === 'medium'
+                        ? 'bg-yellow-900/30 text-yellow-300'
+                        : 'bg-red-900/30 text-red-300'
+                    }`}>
+                      {directionLock.riskLevel}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-400">Choose your approach:</p>
+                  {(['safe', 'push-boundaries', 'experimental'] as const).map(approach => (
+                    <button
+                      key={approach}
+                      onClick={() => setDirectionLock({ ...directionLock, approach })}
+                      className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                        directionLock.approach === approach
+                          ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {approach === 'safe' && 'Ship Safe'}
+                      {approach === 'push-boundaries' && 'Push Boundaries'}
+                      {approach === 'experimental' && 'Experimental'}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={async () => {
+                    setLoading(true)
+                    // Generate draft based on locked direction
+                    const idea: IdeaCard = {
+                      id: '1',
+                      title: directionLock.ideaSummary,
+                      whyItWorks: `Optimized for ${directionLock.contrail}`,
+                      hookPreview: '',
+                      effortLevel: directionLock.riskLevel as EffortLevel,
+                      basedOn: [],
+                      status: 'new'
+                    }
+                    await turnIntoDraft(idea)
+                    setLoading(false)
+                  }}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-6"
+                >
+                  {loading ? 'Generating Draft...' : 'Proceed to Draft'}
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
@@ -1160,65 +1499,114 @@ export default function CreatorPilot() {
           {/* Main Editor */}
           <div className="lg:col-span-2 space-y-6">
             {/* Hook */}
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white text-sm">Hook</CardTitle>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => rewriteSection(draft.hook, 'Make this more me', 'hook')}
-                      className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
-                    >
-                      More me
-                    </button>
-                    <button
-                      onClick={() => rewriteSection(draft.hook, 'Make this punchier', 'hook')}
-                      className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
-                    >
-                      Punchier
-                    </button>
+            <Card className="bg-slate-900/50 border-slate-700/50 relative">
+              {/* Confidence Indicator - Left Margin */}
+              <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col items-center justify-center gap-4 border-r border-slate-700/50 bg-slate-800/30">
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex flex-col gap-1">
+                    {[...Array(4)].map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          idx < confidence.hookStrength ? 'bg-purple-400' : 'bg-slate-700'
+                        }`}
+                      />
+                    ))}
                   </div>
+                  <p className="text-[8px] text-slate-500 writing-mode-vertical transform rotate-180 mt-2">Hook</p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <textarea
-                  value={draft.hook}
-                  onChange={(e) => setDraft({ ...draft, hook: e.target.value })}
-                  className="w-full bg-slate-800/50 text-white rounded-lg p-4 min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="Your hook..."
-                />
-              </CardContent>
+              </div>
+              <div className="pl-8">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-white text-sm">Hook</CardTitle>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => rewriteSection(draft.hook, 'Make this more me', 'hook')}
+                        className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
+                      >
+                        More me
+                      </button>
+                      <button
+                        onClick={() => rewriteSection(draft.hook, 'Make this punchier', 'hook')}
+                        className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
+                      >
+                        Punchier
+                      </button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <textarea
+                    value={draft.hook}
+                    onChange={(e) => setDraft({ ...draft, hook: e.target.value })}
+                    className="w-full bg-slate-800/50 text-white rounded-lg p-4 min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Your hook..."
+                  />
+                </CardContent>
+              </div>
             </Card>
 
             {/* Body */}
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white text-sm">Body</CardTitle>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => rewriteSection(draft.body, 'Shorten this', 'body')}
-                      className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
-                    >
-                      Shorten
-                    </button>
-                    <button
-                      onClick={() => rewriteSection(draft.body, 'Make more personal', 'body')}
-                      className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
-                    >
-                      Personal
-                    </button>
+            <Card className="bg-slate-900/50 border-slate-700/50 relative">
+              {/* Confidence Indicators - Left Margin */}
+              <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col items-center justify-center gap-4 border-r border-slate-700/50 bg-slate-800/30">
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex flex-col gap-1">
+                    {[...Array(4)].map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          idx < confidence.clarity ? 'bg-blue-400' : 'bg-slate-700'
+                        }`}
+                      />
+                    ))}
                   </div>
+                  <p className="text-[8px] text-slate-500 writing-mode-vertical transform rotate-180 mt-2">Clarity</p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <textarea
-                  value={draft.body}
-                  onChange={(e) => setDraft({ ...draft, body: e.target.value })}
-                  className="w-full bg-slate-800/50 text-white rounded-lg p-4 min-h-[200px] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="Your content..."
-                />
-              </CardContent>
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex flex-col gap-1">
+                    {[...Array(4)].map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          idx < confidence.savePotential ? 'bg-green-400' : 'bg-slate-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[8px] text-slate-500 writing-mode-vertical transform rotate-180 mt-2">Save</p>
+                </div>
+              </div>
+              <div className="pl-8">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-white text-sm">Body</CardTitle>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => rewriteSection(draft.body, 'Shorten this', 'body')}
+                        className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
+                      >
+                        Shorten
+                      </button>
+                      <button
+                        onClick={() => rewriteSection(draft.body, 'Make more personal', 'body')}
+                        className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
+                      >
+                        Personal
+                      </button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <textarea
+                    value={draft.body}
+                    onChange={(e) => setDraft({ ...draft, body: e.target.value })}
+                    className="w-full bg-slate-800/50 text-white rounded-lg p-4 min-h-[200px] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Your content..."
+                  />
+                </CardContent>
+              </div>
             </Card>
 
             {/* CTA */}
@@ -1248,11 +1636,11 @@ export default function CreatorPilot() {
                 Copy Caption
               </Button>
               <Button
-                onClick={saveToCalendar}
+                onClick={() => setCurrentScreen('pre-flight')}
                 className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
               >
                 <FiSave className="mr-2" />
-                Save to Calendar
+                Ready to Publish
               </Button>
             </div>
           </div>
@@ -1326,6 +1714,88 @@ export default function CreatorPilot() {
       </div>
     </div>
   )
+
+  // PRE-FLIGHT CHECK SCREEN
+  const PreFlightScreen = () => {
+    const checklistItems = [
+      { label: 'Hook appears in first 2 seconds', checked: draft.hook.split(' ').length <= 7 },
+      { label: 'Matches your contrail', checked: contrail.length > 0 },
+      { label: 'Tone consistent with past wins', checked: matchMyPosts },
+      { label: 'CTA present', checked: draft.cta.length > 0 }
+    ]
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 flex items-center justify-center px-6">
+        <div className="max-w-lg w-full">
+          <Card className="bg-slate-900/80 border-purple-700/50 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-white text-center text-2xl">Pre-Flight Check</CardTitle>
+              <p className="text-center text-slate-400 text-sm mt-2">Are you ready?</p>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* Auto-Checked Checklist */}
+              <div className="space-y-3">
+                {checklistItems.map((item, idx) => (
+                  <div key={idx} className="flex items-start gap-3">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                      item.checked
+                        ? 'bg-green-600'
+                        : 'bg-slate-700'
+                    }`}>
+                      {item.checked && <FiCheck className="text-white text-sm" />}
+                    </div>
+                    <p className={`text-sm ${item.checked ? 'text-white' : 'text-slate-400'}`}>
+                      {item.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Intent Selection */}
+              <div className="space-y-3 pt-4 border-t border-slate-700">
+                <p className="text-sm text-slate-400">What's your intent with this post?</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {(['teach', 'connect', 'trigger-conversation', 'test-new'] as PublishIntent[]).map(intent => (
+                    <button
+                      key={intent}
+                      onClick={() => setPublishIntent(intent)}
+                      className={`px-4 py-3 rounded-lg text-sm font-medium transition-all text-left ${
+                        publishIntent === intent
+                          ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {intent === 'teach' && 'Teach'}
+                      {intent === 'connect' && 'Connect'}
+                      {intent === 'trigger-conversation' && 'Trigger conversation'}
+                      {intent === 'test-new' && 'Test something new'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={() => setCurrentScreen('draft-editor')}
+                  variant="outline"
+                  className="flex-1 border-slate-700 text-slate-300"
+                >
+                  Back to Draft
+                </Button>
+                <Button
+                  onClick={saveToCalendarWithIntent}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                >
+                  Ready to Publish
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   // CONTENT CALENDAR SCREEN
   const ContentCalendarScreen = () => (
@@ -1407,6 +1877,43 @@ export default function CreatorPilot() {
     </div>
   )
 
+  // SESSION COMPLETE SCREEN
+  const SessionCompleteScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 flex items-center justify-center px-6">
+      <div className="max-w-md w-full text-center">
+        <div className="mb-8">
+          <div className="w-20 h-20 mx-auto bg-green-900/30 rounded-full flex items-center justify-center mb-6">
+            <FiCheckCircle className="text-green-400 text-4xl" />
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-4">Session Complete</h1>
+          <p className="text-xl text-slate-300 mb-2">We'll track how this performs</p>
+          <p className="text-sm text-slate-500">Your intent and contrail are saved for analysis</p>
+        </div>
+
+        <div className="space-y-3">
+          <Button
+            onClick={() => setCurrentScreen('content-calendar')}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-6"
+          >
+            <FiCalendar className="mr-2" />
+            View Calendar
+          </Button>
+          <Button
+            onClick={() => {
+              setCurrentScreen('dashboard')
+              // Set reflection to show on next visit
+              setTimeout(() => setShowReflection(true), 500)
+            }}
+            variant="outline"
+            className="w-full border-slate-700 text-slate-300 hover:text-white py-6"
+          >
+            Back to Dashboard
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+
   // RENDER
   if (!isOnboarded && currentScreen === 'onboarding') {
     return <OnboardingScreen />
@@ -1417,7 +1924,10 @@ export default function CreatorPilot() {
       {currentScreen === 'dashboard' && <DashboardScreen />}
       {currentScreen === 'insight-canvas' && <InsightCanvasScreen />}
       {currentScreen === 'idea-board' && <IdeaBoardScreen />}
+      {currentScreen === 'direction-lock' && <DirectionLockScreen />}
       {currentScreen === 'draft-editor' && <DraftEditorScreen />}
+      {currentScreen === 'pre-flight' && <PreFlightScreen />}
+      {currentScreen === 'session-complete' && <SessionCompleteScreen />}
       {currentScreen === 'content-calendar' && <ContentCalendarScreen />}
     </>
   )
