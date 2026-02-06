@@ -1,779 +1,1207 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { callAIAgent, type NormalizedAgentResponse } from '@/lib/aiAgent'
+import { useState, useEffect } from 'react'
+import { callAIAgent } from '@/lib/aiAgent'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
-import { FiSend, FiSettings, FiTrendingUp, FiMessageCircle, FiEdit3, FiChevronDown, FiChevronUp, FiX, FiRefreshCw } from 'react-icons/fi'
+import {
+  FiTrendingUp,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiChevronDown,
+  FiChevronUp,
+  FiThumbsUp,
+  FiThumbsDown,
+  FiRefreshCw,
+  FiEdit3,
+  FiCopy,
+  FiSave,
+  FiX,
+  FiTarget,
+  FiZap,
+  FiBarChart2,
+  FiEye,
+  FiHeart,
+  FiBookmark
+} from 'react-icons/fi'
 
 // Agent IDs
 const AGENT_IDS = {
-  CREATOR_PARTNER_MANAGER: '69858798094c8b2d4207dcba',
   INSIGHT_COACH: '69858743e17e33c11eed19b3',
   BRAINSTORM_PARTNER: '698587582237a2c55706b012',
   VOICE_WRITER: '6985876eb90162af337b1ea1',
   TREND_CONTEXT: '6985878307ec48e3dc90a194',
 }
 
-// TypeScript interfaces from actual test responses
-interface CreatorPartnerManagerResult {
-  detected_intent: 'insight' | 'brainstorm' | 'write' | 'trend'
-  routed_to_agent: string
-  context_summary: string
-  routing_confidence: 'low' | 'medium' | 'high'
-  user_message_interpretation: string
-}
+// Types
+type Screen = 'dashboard' | 'insight-canvas' | 'idea-board' | 'draft-editor'
+type ContentType = 'reel' | 'carousel' | 'story'
+type Goal = 'reach' | 'saves' | 'authority'
+type EffortLevel = 'low' | 'medium' | 'high'
+type Tone = 'raw' | 'polished' | 'bold'
 
-interface InsightCoachResult {
-  observation: string
-  explanation: string
-  suggestion?: string | null
-  emotional_insight: string
-  confidence_level: 'low' | 'medium' | 'high'
-}
-
-interface BrainstormPartnerResult {
-  original_idea: string
-  refined_idea: string
-  clarifying_questions: string[]
-  validation_points: string[]
-  evolution_stage: 'initial' | 'refining' | 'final'
-  reasoning: string
-}
-
-interface VoiceWriterResult {
-  content_type: string
-  generated_content: string
-  hook: string
-  body: string
-  cta: string
-  voice_parameters_used: {
-    casualness: number
-    boldness: number
-    emoji_usage: string
-    professionalism: number
-  }
-  variations: string[]
-}
-
-interface TrendContextResult {
-  trend_name: string
-  trend_description: string
-  relevance_to_creator: string
-  past_winner_match?: string
-  actionable_insight: string
-  confidence_level: 'low' | 'medium' | 'high'
-  uncertainty_note?: string
-}
-
-interface Message {
+interface InsightCard {
   id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: Date
-  agentType?: 'insight' | 'brainstorm' | 'write' | 'trend' | 'manager'
-  data?: any
+  title: string
+  confidence: 'high' | 'medium' | 'low'
+  selected: boolean
+  example?: string
+}
+
+interface IdeaCard {
+  id: string
+  title: string
+  whyItWorks: string
+  hookPreview: string
+  effortLevel: EffortLevel
+  basedOn: string[]
+  status: 'new' | 'saved' | 'dismissed'
 }
 
 interface VoicePreset {
   name: string
   casualness: number
   boldness: number
-  emoji_usage: number
+  emojiUsage: number
   professionalism: number
 }
 
-interface IdeaEvolution {
-  original: string
-  refined: string
-  stage: string
-  contributions: string[]
+interface DraftContent {
+  caption: string
+  hook: string
+  body: string
+  cta?: string
 }
 
-export default function Home() {
-  // State
-  const [messages, setMessages] = useState<Message[]>([])
-  const [inputValue, setInputValue] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [activeMode, setActiveMode] = useState<'insight' | 'brainstorm' | 'write' | null>(null)
-  const [showVoicePanel, setShowVoicePanel] = useState(false)
-  const [dailyInsight, setDailyInsight] = useState<InsightCoachResult | null>(null)
-  const [ideaEvolution, setIdeaEvolution] = useState<IdeaEvolution | null>(null)
+export default function CreatorPilot() {
+  const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard')
+  const [loading, setLoading] = useState(false)
 
-  // Voice settings state
-  const [voiceSettings, setVoiceSettings] = useState({
-    casualness: 5,
-    boldness: 5,
-    emoji_usage: 5,
-    professionalism: 5,
+  // Dashboard state
+  const [dailyInsight, setDailyInsight] = useState<string>(
+    "Your audience saves story-led posts 3.2× more than trend-led posts"
+  )
+  const [insightExpanded, setInsightExpanded] = useState(false)
+
+  // Insight Canvas state
+  const [insights, setInsights] = useState<InsightCard[]>([
+    {
+      id: '1',
+      title: 'Hooks with questions retain viewers longer',
+      confidence: 'high',
+      selected: false,
+      example: 'Ever wonder why some posts just stop you scrolling?'
+    },
+    {
+      id: '2',
+      title: 'Carousels outperform reels when topic is personal',
+      confidence: 'high',
+      selected: false,
+      example: 'Share your journey in slides, not rushed videos'
+    },
+    {
+      id: '3',
+      title: 'Audience drops off after 5 seconds if no text appears',
+      confidence: 'medium',
+      selected: false,
+      example: 'Add text overlay immediately'
+    }
+  ])
+  const [constraints, setConstraints] = useState({
+    contentType: 'carousel' as ContentType,
+    goal: 'saves' as Goal,
+    effortLevel: 'medium' as EffortLevel,
+    tone: 'polished' as Tone
   })
 
-  const [voicePresets, setVoicePresets] = useState<VoicePreset[]>([
-    { name: 'Professional', casualness: 3, boldness: 4, emoji_usage: 2, professionalism: 8 },
-    { name: 'Casual & Fun', casualness: 8, boldness: 6, emoji_usage: 8, professionalism: 3 },
-    { name: 'Balanced', casualness: 5, boldness: 5, emoji_usage: 5, professionalism: 5 },
-  ])
+  // Idea Board state
+  const [ideas, setIdeas] = useState<IdeaCard[]>([])
+  const [selectedIdea, setSelectedIdea] = useState<IdeaCard | null>(null)
 
-  const [selectedPreset, setSelectedPreset] = useState<string>('Balanced')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Refinement state
+  const [refinementSliders, setRefinementSliders] = useState({
+    personalEducational: 50,
+    softBold: 50,
+    controversy: 0
+  })
 
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  // Draft Editor state
+  const [draft, setDraft] = useState<DraftContent>({
+    caption: '',
+    hook: '',
+    body: '',
+    cta: ''
+  })
+  const [voicePreset, setVoicePreset] = useState<VoicePreset>({
+    name: 'My Default Voice',
+    casualness: 7,
+    boldness: 5,
+    emojiUsage: 3,
+    professionalism: 4
+  })
+  const [showVoicePanel, setShowVoicePanel] = useState(false)
+  const [matchMyPosts, setMatchMyPosts] = useState(true)
+  const [dontSoundAI, setDontSoundAI] = useState(true)
 
-  // Load daily insight on mount
-  useEffect(() => {
-    loadDailyInsight()
-  }, [])
-
-  const loadDailyInsight = async () => {
-    const result = await callAIAgent(
-      'Give me an insight about my recent content performance',
-      AGENT_IDS.INSIGHT_COACH
-    )
-    if (result.success && result.response.status === 'success') {
-      setDailyInsight(result.response.result as InsightCoachResult)
-    }
-  }
-
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputValue,
-      timestamp: new Date(),
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    setInputValue('')
-    setIsLoading(true)
-
+  // Generate insights using AI
+  const generateInsights = async () => {
+    setLoading(true)
     try {
-      // First, route through Creator Partner Manager
-      const routingResult = await callAIAgent(inputValue, AGENT_IDS.CREATOR_PARTNER_MANAGER)
+      const response = await callAIAgent(
+        AGENT_IDS.INSIGHT_COACH,
+        "Analyze my recent Instagram content and provide 3 actionable insights about what's working"
+      )
 
-      if (routingResult.success && routingResult.response.status === 'success') {
-        const managerData = routingResult.response.result as CreatorPartnerManagerResult
-        const intent = managerData.detected_intent
-
-        // Set active mode based on routing
-        setActiveMode(intent)
-
-        // Route to appropriate sub-agent
-        let agentId = AGENT_IDS.CREATOR_PARTNER_MANAGER
-        if (intent === 'insight') agentId = AGENT_IDS.INSIGHT_COACH
-        else if (intent === 'brainstorm') agentId = AGENT_IDS.BRAINSTORM_PARTNER
-        else if (intent === 'write') agentId = AGENT_IDS.VOICE_WRITER
-        else if (intent === 'trend') agentId = AGENT_IDS.TREND_CONTEXT
-
-        // Call the routed agent
-        let finalMessage = inputValue
-        if (intent === 'write') {
-          // Add voice parameters for writer agent
-          finalMessage = `${inputValue}. Voice settings: casualness=${voiceSettings.casualness}, boldness=${voiceSettings.boldness}, emoji_usage=${voiceSettings.emoji_usage}, professionalism=${voiceSettings.professionalism}`
-        }
-
-        const agentResult = await callAIAgent(finalMessage, agentId)
-
-        if (agentResult.success && agentResult.response.status === 'success') {
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: getMessageContent(agentResult.response, intent),
-            timestamp: new Date(),
-            agentType: intent,
-            data: agentResult.response.result,
+      if (response.status === 'success' && response.result) {
+        const result = response.result as any
+        // Map AI response to insight cards
+        const newInsights: InsightCard[] = [
+          {
+            id: '1',
+            title: result.emotional_insight || result.observation || 'Personal stories resonate more',
+            confidence: result.confidence_level || 'high',
+            selected: false
+          },
+          {
+            id: '2',
+            title: result.explanation || 'Your audience engages more with vulnerability',
+            confidence: 'medium',
+            selected: false
           }
-
-          setMessages(prev => [...prev, assistantMessage])
-
-          // Update idea evolution for brainstorm
-          if (intent === 'brainstorm') {
-            const brainstormData = agentResult.response.result as BrainstormPartnerResult
-            setIdeaEvolution({
-              original: brainstormData.original_idea,
-              refined: brainstormData.refined_idea,
-              stage: brainstormData.evolution_stage,
-              contributions: brainstormData.validation_points,
-            })
-          }
-        } else {
-          addErrorMessage(agentResult.response.message || 'Failed to get response')
+        ]
+        if (result.suggestion) {
+          newInsights.push({
+            id: '3',
+            title: result.suggestion,
+            confidence: 'medium',
+            selected: false
+          })
         }
-      } else {
-        addErrorMessage('Failed to route message')
+        setInsights(newInsights)
       }
     } catch (error) {
-      addErrorMessage('Network error occurred')
-    } finally {
-      setIsLoading(false)
+      console.error('Error generating insights:', error)
     }
+    setLoading(false)
   }
 
-  const addErrorMessage = (errorText: string) => {
-    const errorMessage: Message = {
-      id: Date.now().toString(),
-      role: 'assistant',
-      content: `I'm not fully sure about this - here's what I can see: ${errorText}`,
-      timestamp: new Date(),
+  // Generate ideas based on selected insights
+  const generateIdeas = async () => {
+    setLoading(true)
+    const selectedInsightTitles = insights
+      .filter(i => i.selected)
+      .map(i => i.title)
+      .join(', ')
+
+    try {
+      const response = await callAIAgent(
+        AGENT_IDS.BRAINSTORM_PARTNER,
+        `Generate 3 content ideas for Instagram ${constraints.contentType} that align with these insights: ${selectedInsightTitles}. Goal: ${constraints.goal}. Effort level: ${constraints.effortLevel}. Tone: ${constraints.tone}.`
+      )
+
+      if (response.status === 'success' && response.result) {
+        const result = response.result as any
+        const newIdeas: IdeaCard[] = [
+          {
+            id: '1',
+            title: result.refined_idea || result.original_idea || 'The mistake I made before my first brand deal',
+            whyItWorks: result.reasoning || 'Based on personal stories + save-heavy formats',
+            hookPreview: 'I almost lost everything before I learned this...',
+            effortLevel: constraints.effortLevel,
+            basedOn: selectedInsightTitles ? [selectedInsightTitles] : ['Personal stories', 'Save-heavy formats'],
+            status: 'new'
+          }
+        ]
+
+        // Add more ideas if we have validation points
+        if (result.validation_points && Array.isArray(result.validation_points)) {
+          result.validation_points.forEach((point: string, idx: number) => {
+            if (idx < 2) {
+              newIdeas.push({
+                id: `${idx + 2}`,
+                title: point,
+                whyItWorks: 'Validated by AI analysis',
+                hookPreview: point.substring(0, 50) + '...',
+                effortLevel: constraints.effortLevel,
+                basedOn: selectedInsightTitles ? [selectedInsightTitles] : ['AI Validation'],
+                status: 'new'
+              })
+            }
+          })
+        }
+
+        setIdeas(newIdeas)
+        setCurrentScreen('idea-board')
+      }
+    } catch (error) {
+      console.error('Error generating ideas:', error)
     }
-    setMessages(prev => [...prev, errorMessage])
+    setLoading(false)
   }
 
-  const getMessageContent = (response: NormalizedAgentResponse, intent: string): string => {
-    const result = response.result
+  // Refine selected idea
+  const refineIdea = async (idea: IdeaCard) => {
+    setLoading(true)
+    try {
+      const response = await callAIAgent(
+        AGENT_IDS.BRAINSTORM_PARTNER,
+        `Refine this content idea: "${idea.title}". Make it ${refinementSliders.personalEducational > 50 ? 'more personal' : 'more educational'}, ${refinementSliders.softBold > 50 ? 'bolder' : 'softer'}, ${refinementSliders.controversy > 30 ? 'with some controversy' : 'non-controversial'}.`
+      )
 
-    if (intent === 'insight') {
-      const data = result as InsightCoachResult
-      return data.observation || 'No insight available'
-    } else if (intent === 'brainstorm') {
-      const data = result as BrainstormPartnerResult
-      return data.refined_idea || 'No refined idea available'
-    } else if (intent === 'write') {
-      const data = result as VoiceWriterResult
-      return data.generated_content || 'No content generated'
-    } else if (intent === 'trend') {
-      const data = result as TrendContextResult
-      return data.trend_description || data.uncertainty_note || 'No trend data available'
+      if (response.status === 'success' && response.result) {
+        const result = response.result as any
+        const refinedIdea: IdeaCard = {
+          ...idea,
+          title: result.refined_idea || idea.title,
+          whyItWorks: result.reasoning || idea.whyItWorks
+        }
+        setSelectedIdea(refinedIdea)
+        setIdeas(ideas.map(i => i.id === idea.id ? refinedIdea : i))
+      }
+    } catch (error) {
+      console.error('Error refining idea:', error)
     }
-
-    return 'Response received'
+    setLoading(false)
   }
 
-  const applyVoicePreset = (presetName: string) => {
-    const preset = voicePresets.find(p => p.name === presetName)
-    if (preset) {
-      setVoiceSettings({
-        casualness: preset.casualness,
-        boldness: preset.boldness,
-        emoji_usage: preset.emoji_usage,
-        professionalism: preset.professionalism,
-      })
-      setSelectedPreset(presetName)
+  // Turn idea into draft
+  const turnIntoDraft = async (idea: IdeaCard) => {
+    setLoading(true)
+    try {
+      const voiceSettings = `casualness=${voicePreset.casualness}, boldness=${voicePreset.boldness}, emoji_usage=${voicePreset.emojiUsage}, professionalism=${voicePreset.professionalism}`
+
+      const response = await callAIAgent(
+        AGENT_IDS.VOICE_WRITER,
+        `Write an Instagram ${constraints.contentType} caption for this idea: "${idea.title}". Why it works: ${idea.whyItWorks}. Voice settings: ${voiceSettings}. ${matchMyPosts ? 'Match my past posts.' : ''} ${dontSoundAI ? 'Don\'t sound AI-generated.' : ''}`
+      )
+
+      if (response.status === 'success' && response.result) {
+        const result = response.result as any
+        setDraft({
+          caption: result.generated_content || result.body || '',
+          hook: result.hook || '',
+          body: result.body || result.generated_content || '',
+          cta: result.cta || ''
+        })
+        setCurrentScreen('draft-editor')
+      }
+    } catch (error) {
+      console.error('Error generating draft:', error)
     }
+    setLoading(false)
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-blue-900/20">
-      {/* Breathing gradient header */}
-      <div className="h-2 bg-gradient-to-r from-purple-500/50 via-blue-500/50 to-purple-500/50 animate-pulse" />
+  // Rewrite section of draft
+  const rewriteSection = async (text: string, instruction: string) => {
+    setLoading(true)
+    try {
+      const voiceSettings = `casualness=${voicePreset.casualness}, boldness=${voicePreset.boldness}, emoji_usage=${voicePreset.emojiUsage}, professionalism=${voicePreset.professionalism}`
 
-      {/* Main Container */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Daily Insight Card */}
-        {dailyInsight && <DailyInsightCard insight={dailyInsight} onRefresh={loadDailyInsight} />}
+      const response = await callAIAgent(
+        AGENT_IDS.VOICE_WRITER,
+        `Rewrite this text: "${text}". Instruction: ${instruction}. Voice settings: ${voiceSettings}.`
+      )
 
-        {/* Main Content Area */}
-        <div className="mt-6 flex gap-6">
-          {/* Conversation Area */}
-          <div className="flex-1 flex flex-col">
-            {/* Messages Container */}
-            <div className="flex-1 mb-4 overflow-y-auto max-h-[calc(100vh-400px)] space-y-4">
-              {messages.length === 0 ? (
-                <div className="text-center py-20">
-                  <FiMessageCircle className="mx-auto text-6xl text-gray-600 mb-4" />
-                  <h2 className="text-2xl font-light text-gray-400 mb-2">Ready to Create</h2>
-                  <p className="text-gray-500">Start a conversation to get insights, brainstorm ideas, or write content</p>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
-                ))
-              )}
-              {isLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-r from-purple-500/30 to-blue-500/30 animate-pulse" />
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+      if (response.status === 'success' && response.result) {
+        const result = response.result as any
+        // Return the rewritten text
+        return result.generated_content || result.body || text
+      }
+    } catch (error) {
+      console.error('Error rewriting:', error)
+    }
+    setLoading(false)
+    return text
+  }
 
-            {/* Idea Evolution View */}
-            {ideaEvolution && <IdeaEvolutionView evolution={ideaEvolution} />}
-
-            {/* Input Area */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-4 border border-gray-700/50">
-              <div className="flex gap-3">
-                <Input
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                  placeholder="What would you like to explore today?"
-                  className="flex-1 bg-gray-900/50 border-gray-700 text-white placeholder-gray-500 focus:border-purple-500 focus:ring-purple-500/20"
-                  disabled={isLoading}
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={isLoading || !inputValue.trim()}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                >
-                  <FiSend className="text-xl" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Mode Indicators - Right Edge */}
-          <ModeIndicators activeMode={activeMode} onVoiceClick={() => setShowVoicePanel(true)} />
+  // DASHBOARD SCREEN
+  const DashboardScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900">
+      <div className="max-w-6xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold text-white mb-2">CreatorPilot</h1>
+          <p className="text-slate-400">Your AI Content Strategist</p>
         </div>
-      </div>
 
-      {/* Voice Control Panel */}
-      {showVoicePanel && (
-        <VoiceControlPanel
-          voiceSettings={voiceSettings}
-          setVoiceSettings={setVoiceSettings}
-          voicePresets={voicePresets}
-          selectedPreset={selectedPreset}
-          applyVoicePreset={applyVoicePreset}
-          onClose={() => setShowVoicePanel(false)}
-        />
-      )}
-    </div>
-  )
-}
-
-// Daily Insight Card Component
-function DailyInsightCard({ insight, onRefresh }: { insight: InsightCoachResult; onRefresh: () => void }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-
-  return (
-    <Card className="bg-gradient-to-br from-purple-900/40 to-blue-900/40 border-purple-500/30 backdrop-blur-sm">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="text-xs text-purple-300 mb-2 font-medium">TODAY'S INSIGHT</div>
-            <CardTitle className="text-2xl font-light text-white leading-relaxed">
-              {insight.emotional_insight}
+        {/* Daily Insight - Hero */}
+        <Card className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 border-purple-700/50 mb-8 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-2xl text-white font-bold">
+              Your Content Reality Today
             </CardTitle>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRefresh}
-            className="text-purple-300 hover:text-purple-200"
-          >
-            <FiRefreshCw className="text-lg" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <p className="text-gray-300 text-sm">{insight.observation}</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <h2 className="text-3xl font-bold text-purple-100 leading-tight">
+                {dailyInsight}
+              </h2>
+              <p className="text-sm text-slate-400">Based on your last 14 posts</p>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-purple-300 hover:text-purple-200 text-sm"
-          >
-            {isExpanded ? (
-              <>
-                <FiChevronUp className="mr-2" /> Hide Details
-              </>
-            ) : (
-              <>
-                <FiChevronDown className="mr-2" /> Why This Matters
-              </>
-            )}
-          </Button>
+              <button
+                onClick={() => setInsightExpanded(!insightExpanded)}
+                className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors"
+              >
+                {insightExpanded ? <FiChevronUp /> : <FiChevronDown />}
+                <span className="text-sm font-medium">Why This Matters</span>
+              </button>
 
-          {isExpanded && (
-            <div className="mt-4 p-4 bg-black/30 rounded-lg">
-              <p className="text-gray-300 text-sm leading-relaxed">{insight.explanation}</p>
-              {insight.suggestion && (
-                <div className="mt-3 pt-3 border-t border-purple-500/20">
-                  <p className="text-purple-200 text-sm font-medium mb-2">Suggestion:</p>
-                  <p className="text-gray-300 text-sm">{insight.suggestion}</p>
+              {insightExpanded && (
+                <div className="pt-4 border-t border-purple-700/30 space-y-3">
+                  <p className="text-slate-300">
+                    Your audience connects more deeply when you share personal experiences and insights.
+                    They're not just scrolling past - they're saving your content to revisit later.
+                  </p>
+                  <div className="bg-purple-950/50 rounded-lg p-4">
+                    <p className="text-sm text-purple-200 font-medium mb-2">What to try:</p>
+                    <p className="text-sm text-slate-300">
+                      Lead with a personal story in your next 3 posts instead of jumping straight to tips
+                    </p>
+                  </div>
+                  <div className="bg-red-950/30 rounded-lg p-4">
+                    <p className="text-sm text-red-200 font-medium mb-2">What happens if you don't:</p>
+                    <p className="text-sm text-slate-300">
+                      You'll keep getting views, but miss the deeper connection that turns followers into fans
+                    </p>
+                  </div>
                 </div>
               )}
-              <div className="mt-3 text-xs text-gray-500">
-                Confidence: {insight.confidence_level}
-              </div>
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+          </CardContent>
+        </Card>
 
-// Message Bubble Component
-function MessageBubble({ message }: { message: Message }) {
-  const isUser = message.role === 'user'
-
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[80%] ${isUser ? 'ml-12' : 'mr-12'}`}>
-        <div
-          className={`rounded-2xl px-5 py-3 ${
-            isUser
-              ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-              : 'bg-gray-800/70 text-gray-100 backdrop-blur-sm border border-gray-700/50'
-          }`}
-        >
-          {message.agentType && !isUser && (
-            <div className="text-xs text-purple-300 mb-2 font-medium uppercase">
-              {message.agentType} mode
-            </div>
-          )}
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-
-          {/* Render special components based on agent type */}
-          {!isUser && message.data && (
-            <div className="mt-4">
-              {message.agentType === 'insight' && <InsightCard data={message.data as InsightCoachResult} />}
-              {message.agentType === 'brainstorm' && <BrainstormCard data={message.data as BrainstormPartnerResult} />}
-              {message.agentType === 'write' && <WriteCard data={message.data as VoiceWriterResult} />}
-              {message.agentType === 'trend' && <TrendCard data={message.data as TrendContextResult} />}
-            </div>
-          )}
-        </div>
-        <div className="text-xs text-gray-600 mt-1 px-2">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Insight Card Component
-function InsightCard({ data }: { data: InsightCoachResult }) {
-  return (
-    <div className="bg-black/30 rounded-lg p-4 space-y-3">
-      <div>
-        <div className="text-xs text-purple-300 mb-1">EXPLANATION</div>
-        <p className="text-sm text-gray-300">{data.explanation}</p>
-      </div>
-      {data.suggestion && (
-        <div>
-          <div className="text-xs text-purple-300 mb-1">SUGGESTION</div>
-          <p className="text-sm text-gray-300">{data.suggestion}</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Brainstorm Card Component
-function BrainstormCard({ data }: { data: BrainstormPartnerResult }) {
-  return (
-    <div className="bg-black/30 rounded-lg p-4 space-y-3">
-      {data.clarifying_questions && data.clarifying_questions.length > 0 && (
-        <div>
-          <div className="text-xs text-purple-300 mb-2">QUESTIONS TO CONSIDER</div>
-          <ul className="space-y-1">
-            {data.clarifying_questions.map((q, i) => (
-              <li key={i} className="text-sm text-gray-300 flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
-                {q}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {data.validation_points && data.validation_points.length > 0 && (
-        <div>
-          <div className="text-xs text-purple-300 mb-2">VALIDATION POINTS</div>
-          <ul className="space-y-1">
-            {data.validation_points.map((p, i) => (
-              <li key={i} className="text-sm text-gray-300 flex items-start">
-                <span className="text-green-400 mr-2">✓</span>
-                {p}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Write Card Component
-function WriteCard({ data }: { data: VoiceWriterResult }) {
-  const [showVariations, setShowVariations] = useState(false)
-
-  return (
-    <div className="bg-black/30 rounded-lg p-4 space-y-3">
-      <div className="space-y-2">
-        <div className="text-xs text-purple-300">HOOK</div>
-        <p className="text-sm text-gray-300">{data.hook}</p>
-      </div>
-      <div className="space-y-2">
-        <div className="text-xs text-purple-300">BODY</div>
-        <p className="text-sm text-gray-300">{data.body}</p>
-      </div>
-      <div className="space-y-2">
-        <div className="text-xs text-purple-300">CTA</div>
-        <p className="text-sm text-gray-300">{data.cta}</p>
-      </div>
-
-      {data.variations && data.variations.length > 0 && (
-        <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowVariations(!showVariations)}
-            className="text-purple-300 hover:text-purple-200 text-xs"
-          >
-            {showVariations ? 'Hide' : 'Show'} Variations ({data.variations.length})
-          </Button>
-
-          {showVariations && (
-            <div className="mt-3 space-y-2">
-              {data.variations.map((v, i) => (
-                <div key={i} className="p-3 bg-gray-900/50 rounded text-sm text-gray-300">
-                  {v}
+        {/* Performance Snapshot */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Best Performing Post */}
+          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur hover:border-purple-700/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-sm text-slate-400 flex items-center gap-2">
+                <FiTrendingUp className="text-green-400" />
+                Best Performing
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="aspect-square bg-gradient-to-br from-purple-800/30 to-blue-800/30 rounded-lg flex items-center justify-center">
+                  <FiBarChart2 className="text-4xl text-purple-300" />
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="bg-purple-900/30 rounded-full px-3 py-1 inline-block">
+                  <p className="text-xs text-purple-200 font-medium">Story-led carousel</p>
+                </div>
+                <p className="text-sm text-slate-300">2.3K saves, 89% completion rate</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pattern Detected */}
+          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur hover:border-purple-700/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-sm text-slate-400 flex items-center gap-2">
+                <FiTarget className="text-blue-400" />
+                Pattern Detected
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-900/30 rounded-lg flex items-center justify-center">
+                    <FiEye className="text-blue-300 text-xl" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-medium">Face + text hook</p>
+                    <p className="text-xs text-slate-400">Wins every time</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-300">Posts with your face visible in frame 1 get 2.1x more engagement</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Missed Opportunity */}
+          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur hover:border-yellow-700/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-sm text-slate-400 flex items-center gap-2">
+                <FiAlertCircle className="text-yellow-400" />
+                Missed Opportunity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                    <FiZap className="text-yellow-300 text-xl" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-medium">Posting time</p>
+                    <p className="text-xs text-slate-400">Could improve reach</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-300">Posting 1 hour earlier could increase initial reach by 30%</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      )}
+
+        {/* Primary CTA */}
+        <div className="flex justify-center">
+          <Button
+            onClick={() => {
+              generateInsights()
+              setCurrentScreen('insight-canvas')
+            }}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-lg px-12 py-6 rounded-xl shadow-lg shadow-purple-900/50"
+          >
+            Improve My Next Post
+          </Button>
+        </div>
+      </div>
     </div>
   )
-}
 
-// Trend Card Component
-function TrendCard({ data }: { data: TrendContextResult }) {
-  return (
-    <div className="bg-black/30 rounded-lg p-4 space-y-3">
-      {data.trend_name && (
-        <div>
-          <div className="text-xs text-purple-300 mb-1">TREND</div>
-          <p className="text-sm font-medium text-white">{data.trend_name}</p>
+  // INSIGHT CANVAS SCREEN
+  const InsightCanvasScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-1">Insight Canvas</h1>
+            <p className="text-slate-400">Select insights that resonate, then set your constraints</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentScreen('dashboard')}
+            className="border-slate-700 text-slate-300 hover:text-white"
+          >
+            <FiX className="mr-2" />
+            Back to Dashboard
+          </Button>
         </div>
-      )}
-      {data.relevance_to_creator && (
-        <div>
-          <div className="text-xs text-purple-300 mb-1">RELEVANCE</div>
-          <p className="text-sm text-gray-300">{data.relevance_to_creator}</p>
-        </div>
-      )}
-      {data.actionable_insight && (
-        <div>
-          <div className="text-xs text-purple-300 mb-1">ACTION</div>
-          <p className="text-sm text-gray-300">{data.actionable_insight}</p>
-        </div>
-      )}
-      {data.uncertainty_note && (
-        <div className="text-xs text-yellow-300/70 italic">
-          {data.uncertainty_note}
-        </div>
-      )}
-    </div>
-  )
-}
 
-// Mode Indicators Component
-function ModeIndicators({
-  activeMode,
-  onVoiceClick
-}: {
-  activeMode: 'insight' | 'brainstorm' | 'write' | null
-  onVoiceClick: () => void
-}) {
-  const modes = [
-    { id: 'insight' as const, icon: FiTrendingUp, label: 'Insight' },
-    { id: 'brainstorm' as const, icon: FiMessageCircle, label: 'Brainstorm' },
-    { id: 'write' as const, icon: FiEdit3, label: 'Write' },
-  ]
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* LEFT: Insight Stack */}
+          <div className="lg:col-span-2 space-y-4">
+            <h2 className="text-xl font-semibold text-white mb-4">Available Insights</h2>
 
-  return (
-    <div className="flex flex-col gap-3">
-      {modes.map((mode) => (
-        <div
-          key={mode.id}
-          className={`p-3 rounded-full transition-all ${
-            activeMode === mode.id
-              ? 'bg-gradient-to-r from-purple-600 to-blue-600 shadow-lg shadow-purple-500/50'
-              : 'bg-gray-800/50 border border-gray-700/50'
-          }`}
-        >
-          <mode.icon className={`text-xl ${activeMode === mode.id ? 'text-white' : 'text-gray-500'}`} />
-        </div>
-      ))}
+            {loading && insights.length === 3 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-pulse text-purple-300">Loading insights...</div>
+              </div>
+            ) : (
+              insights.map(insight => (
+                <Card
+                  key={insight.id}
+                  className={`bg-slate-900/50 border transition-all cursor-pointer ${
+                    insight.selected
+                      ? 'border-purple-500 bg-purple-900/20'
+                      : 'border-slate-700/50 hover:border-slate-600'
+                  }`}
+                  onClick={() => {
+                    setInsights(insights.map(i =>
+                      i.id === insight.id ? { ...i, selected: !i.selected } : i
+                    ))
+                  }}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-medium text-white mb-2">
+                          {insight.title}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            insight.confidence === 'high'
+                              ? 'bg-green-900/30 text-green-300'
+                              : insight.confidence === 'medium'
+                              ? 'bg-yellow-900/30 text-yellow-300'
+                              : 'bg-red-900/30 text-red-300'
+                          }`}>
+                            {insight.confidence} confidence
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        insight.selected
+                          ? 'border-purple-500 bg-purple-500'
+                          : 'border-slate-600'
+                      }`}>
+                        {insight.selected && <FiCheckCircle className="text-white text-sm" />}
+                      </div>
+                    </div>
 
-      <Button
-        onClick={onVoiceClick}
-        variant="ghost"
-        size="sm"
-        className="p-3 rounded-full bg-gray-800/50 border border-gray-700/50 hover:bg-gray-700/50"
-      >
-        <FiSettings className="text-xl text-gray-400" />
-      </Button>
-    </div>
-  )
-}
+                    {insight.example && (
+                      <div className="bg-slate-800/50 rounded-lg p-3 mt-3">
+                        <p className="text-xs text-slate-400 mb-1">Example:</p>
+                        <p className="text-sm text-slate-300 italic">{insight.example}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
 
-// Voice Control Panel Component
-function VoiceControlPanel({
-  voiceSettings,
-  setVoiceSettings,
-  voicePresets,
-  selectedPreset,
-  applyVoicePreset,
-  onClose,
-}: {
-  voiceSettings: { casualness: number; boldness: number; emoji_usage: number; professionalism: number }
-  setVoiceSettings: (settings: any) => void
-  voicePresets: VoicePreset[]
-  selectedPreset: string
-  applyVoicePreset: (name: string) => void
-  onClose: () => void
-}) {
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-end">
-      <div className="bg-gray-900 h-full w-full max-w-md border-l border-gray-700 shadow-2xl animate-slide-in-right">
-        <div className="p-6 h-full overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-light text-white">Voice Control</h2>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <FiX className="text-xl text-gray-400" />
+            <Button
+              onClick={generateInsights}
+              variant="outline"
+              className="w-full border-slate-700 text-slate-300 hover:text-white mt-4"
+            >
+              <FiRefreshCw className="mr-2" />
+              Refresh Insights
             </Button>
           </div>
 
-          {/* Presets */}
-          <div className="mb-8">
-            <div className="text-xs text-purple-300 mb-3 font-medium">PRESETS</div>
-            <div className="grid grid-cols-3 gap-2">
-              {voicePresets.map((preset) => (
-                <Button
-                  key={preset.name}
-                  onClick={() => applyVoicePreset(preset.name)}
-                  variant={selectedPreset === preset.name ? 'default' : 'outline'}
-                  className={
-                    selectedPreset === preset.name
-                      ? 'bg-gradient-to-r from-purple-600 to-blue-600'
-                      : 'border-gray-700 text-gray-300'
-                  }
-                  size="sm"
-                >
-                  {preset.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Sliders */}
+          {/* RIGHT: Constraints Panel */}
           <div className="space-y-6">
-            <VoiceSlider
-              label="Casualness"
-              description="Formal ↔ Conversational"
-              value={voiceSettings.casualness}
-              onChange={(value) => setVoiceSettings({ ...voiceSettings, casualness: value })}
-            />
-            <VoiceSlider
-              label="Boldness"
-              description="Subtle ↔ Bold"
-              value={voiceSettings.boldness}
-              onChange={(value) => setVoiceSettings({ ...voiceSettings, boldness: value })}
-            />
-            <VoiceSlider
-              label="Emoji Usage"
-              description="Minimal ↔ Expressive"
-              value={voiceSettings.emoji_usage}
-              onChange={(value) => setVoiceSettings({ ...voiceSettings, emoji_usage: value })}
-            />
-            <VoiceSlider
-              label="Professionalism"
-              description="Playful ↔ Professional"
-              value={voiceSettings.professionalism}
-              onChange={(value) => setVoiceSettings({ ...voiceSettings, professionalism: value })}
-            />
-          </div>
+            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur sticky top-8">
+              <CardHeader>
+                <CardTitle className="text-white">Set Your Constraints</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Content Type */}
+                <div>
+                  <label className="text-sm text-slate-300 mb-2 block">Content Type</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['reel', 'carousel', 'story'] as ContentType[]).map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setConstraints({ ...constraints, contentType: type })}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          constraints.contentType === type
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        }`}
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-          {/* Sample Preview */}
-          <div className="mt-8 p-4 bg-black/30 rounded-lg border border-purple-500/20">
-            <div className="text-xs text-purple-300 mb-2">SAMPLE CAPTION PREVIEW</div>
-            <p className="text-sm text-gray-300 leading-relaxed">
-              Your caption will reflect these voice settings when you request content from the Write mode.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+                {/* Goal */}
+                <div>
+                  <label className="text-sm text-slate-300 mb-2 block">Goal</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['reach', 'saves', 'authority'] as Goal[]).map(goal => (
+                      <button
+                        key={goal}
+                        onClick={() => setConstraints({ ...constraints, goal })}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          constraints.goal === goal
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        }`}
+                      >
+                        {goal.charAt(0).toUpperCase() + goal.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-// Voice Slider Component
-function VoiceSlider({
-  label,
-  description,
-  value,
-  onChange,
-}: {
-  label: string
-  description: string
-  value: number
-  onChange: (value: number) => void
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm text-white font-medium">{label}</div>
-        <div className="text-xs text-purple-300">{value}/10</div>
-      </div>
-      <Slider
-        value={[value]}
-        onValueChange={(vals) => onChange(vals[0])}
-        min={1}
-        max={10}
-        step={1}
-        className="mb-1"
-      />
-      <div className="text-xs text-gray-500">{description}</div>
-    </div>
-  )
-}
+                {/* Effort Level */}
+                <div>
+                  <label className="text-sm text-slate-300 mb-2 block">Effort Level</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['low', 'medium', 'high'] as EffortLevel[]).map(level => (
+                      <button
+                        key={level}
+                        onClick={() => setConstraints({ ...constraints, effortLevel: level })}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          constraints.effortLevel === level
+                            ? 'bg-green-600 text-white'
+                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        }`}
+                      >
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-// Idea Evolution View Component
-function IdeaEvolutionView({ evolution }: { evolution: IdeaEvolution }) {
-  return (
-    <Card className="mb-4 bg-gray-800/50 border-gray-700/50 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="text-lg font-light text-white">Idea Evolution</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <div className="text-xs text-purple-300 font-medium">ORIGINAL</div>
-            <div className="p-3 bg-gray-900/50 rounded-lg">
-              <p className="text-sm text-gray-300">{evolution.original}</p>
-            </div>
-          </div>
-          <div className="flex items-center justify-center">
-            <div className="text-purple-400">→</div>
-          </div>
-          <div className="space-y-2">
-            <div className="text-xs text-green-300 font-medium">REFINED</div>
-            <div className="p-3 bg-gradient-to-br from-green-900/20 to-blue-900/20 rounded-lg border border-green-500/20">
-              <p className="text-sm text-gray-300">{evolution.refined}</p>
-            </div>
-          </div>
-        </div>
-        {evolution.contributions && evolution.contributions.length > 0 && (
-          <div className="mt-4">
-            <div className="text-xs text-purple-300 mb-2">YOUR CONTRIBUTIONS</div>
-            <div className="flex flex-wrap gap-2">
-              {evolution.contributions.map((contrib, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1 bg-purple-500/20 text-purple-200 rounded-full text-xs border border-purple-500/30"
+                {/* Tone */}
+                <div>
+                  <label className="text-sm text-slate-300 mb-2 block">Tone</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['raw', 'polished', 'bold'] as Tone[]).map(tone => (
+                      <button
+                        key={tone}
+                        onClick={() => setConstraints({ ...constraints, tone })}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          constraints.tone === tone
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        }`}
+                      >
+                        {tone.charAt(0).toUpperCase() + tone.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Generate Button */}
+                <Button
+                  onClick={generateIdeas}
+                  disabled={insights.filter(i => i.selected).length === 0 || loading}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
                 >
-                  {contrib}
-                </span>
-              ))}
-            </div>
+                  {loading ? 'Generating...' : 'Generate Ideas'}
+                </Button>
+
+                {insights.filter(i => i.selected).length === 0 && (
+                  <p className="text-xs text-slate-500 text-center">
+                    Select at least one insight to continue
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  // IDEA BOARD SCREEN
+  const IdeaBoardScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-1">Idea Board</h1>
+            <p className="text-slate-400">Choose an idea to refine or turn into a draft</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentScreen('insight-canvas')}
+            className="border-slate-700 text-slate-300 hover:text-white"
+          >
+            <FiX className="mr-2" />
+            Back to Canvas
+          </Button>
+        </div>
+
+        {/* Ideas Grid */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-pulse text-purple-300">Generating ideas...</div>
+          </div>
+        ) : ideas.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-slate-400">No ideas generated yet</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ideas.map(idea => (
+              <Card
+                key={idea.id}
+                className={`bg-slate-900/50 border transition-all ${
+                  idea.status === 'saved'
+                    ? 'border-green-700/50 bg-green-900/10'
+                    : idea.status === 'dismissed'
+                    ? 'opacity-50 border-red-700/30'
+                    : 'border-slate-700/50 hover:border-purple-700/50'
+                }`}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg text-white leading-tight">
+                    {idea.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Why it works:</p>
+                    <p className="text-sm text-slate-300">{idea.whyItWorks}</p>
+                  </div>
+
+                  <div className="bg-slate-800/50 rounded-lg p-3">
+                    <p className="text-xs text-slate-400 mb-1">Hook preview:</p>
+                    <p className="text-sm text-purple-200 italic">{idea.hookPreview}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      idea.effortLevel === 'low'
+                        ? 'bg-green-900/30 text-green-300'
+                        : idea.effortLevel === 'medium'
+                        ? 'bg-yellow-900/30 text-yellow-300'
+                        : 'bg-red-900/30 text-red-300'
+                    }`}>
+                      {idea.effortLevel} effort
+                    </span>
+                    {idea.basedOn.slice(0, 2).map((tag, idx) => (
+                      <span key={idx} className="text-xs px-2 py-1 rounded-full bg-purple-900/30 text-purple-300">
+                        {tag.length > 20 ? tag.substring(0, 20) + '...' : tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedIdea(idea)
+                        // Show refinement UI
+                      }}
+                      className="border-slate-700 text-slate-300 hover:text-white"
+                    >
+                      <FiEdit3 className="mr-1 text-xs" />
+                      Tweak
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => turnIntoDraft(idea)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      Turn into Draft
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setIdeas(ideas.map(i =>
+                        i.id === idea.id ? { ...i, status: 'saved' } : i
+                      ))}
+                      className="flex items-center justify-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-green-900/30 text-slate-400 hover:text-green-300 transition-colors"
+                    >
+                      <FiThumbsUp className="text-xs" />
+                      <span className="text-xs">Save</span>
+                    </button>
+                    <button
+                      onClick={() => generateIdeas()}
+                      className="flex items-center justify-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-blue-900/30 text-slate-400 hover:text-blue-300 transition-colors"
+                    >
+                      <FiRefreshCw className="text-xs" />
+                      <span className="text-xs">Similar</span>
+                    </button>
+                    <button
+                      onClick={() => setIdeas(ideas.map(i =>
+                        i.id === idea.id ? { ...i, status: 'dismissed' } : i
+                      ))}
+                      className="flex items-center justify-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-300 transition-colors"
+                    >
+                      <FiThumbsDown className="text-xs" />
+                      <span className="text-xs">Dismiss</span>
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+
+        {/* Refinement Panel (shown when idea selected) */}
+        {selectedIdea && (
+          <Card className="mt-8 bg-slate-900/80 border-purple-700/50 backdrop-blur">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white">Refine: {selectedIdea.title}</CardTitle>
+                <button
+                  onClick={() => setSelectedIdea(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <FiX />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm text-slate-300">More Personal</label>
+                  <label className="text-sm text-slate-300">More Educational</label>
+                </div>
+                <Slider
+                  value={[refinementSliders.personalEducational]}
+                  onValueChange={(value) =>
+                    setRefinementSliders({ ...refinementSliders, personalEducational: value[0] })
+                  }
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="mb-4"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm text-slate-300">Soft Hook</label>
+                  <label className="text-sm text-slate-300">Bold Hook</label>
+                </div>
+                <Slider
+                  value={[refinementSliders.softBold]}
+                  onValueChange={(value) =>
+                    setRefinementSliders({ ...refinementSliders, softBold: value[0] })
+                  }
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="mb-4"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm text-slate-300">Add Controversy?</label>
+                  <span className="text-sm text-slate-400">{refinementSliders.controversy}%</span>
+                </div>
+                <Slider
+                  value={[refinementSliders.controversy]}
+                  onValueChange={(value) =>
+                    setRefinementSliders({ ...refinementSliders, controversy: value[0] })
+                  }
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="mb-4"
+                />
+              </div>
+
+              <Button
+                onClick={() => refineIdea(selectedIdea)}
+                disabled={loading}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {loading ? 'Refining...' : 'Apply Refinements'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+
+  // DRAFT EDITOR SCREEN
+  const DraftEditorScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-1">Draft Editor</h1>
+            <p className="text-slate-400">Fine-tune your content with inline AI assistance</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowVoicePanel(!showVoicePanel)}
+              className="border-slate-700 text-slate-300 hover:text-white"
+            >
+              <FiSettings className="mr-2" />
+              Voice Settings
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setCurrentScreen('idea-board')}
+              className="border-slate-700 text-slate-300 hover:text-white"
+            >
+              <FiX className="mr-2" />
+              Back to Ideas
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Editor */}
+          <div className="lg:col-span-2 space-y-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-pulse text-purple-300">Generating draft...</div>
+              </div>
+            ) : (
+              <>
+                {/* Hook Section */}
+                <Card className="bg-slate-900/50 border-slate-700/50">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white text-sm">Hook</CardTitle>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            const rewritten = await rewriteSection(draft.hook, 'Make this more me')
+                            setDraft({ ...draft, hook: rewritten })
+                          }}
+                          className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
+                        >
+                          Make this more me
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const rewritten = await rewriteSection(draft.hook, 'Make this punchier')
+                            setDraft({ ...draft, hook: rewritten })
+                          }}
+                          className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
+                        >
+                          Punchier
+                        </button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <textarea
+                      value={draft.hook}
+                      onChange={(e) => setDraft({ ...draft, hook: e.target.value })}
+                      className="w-full bg-slate-800/50 text-white rounded-lg p-4 min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Your hook goes here..."
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Body Section */}
+                <Card className="bg-slate-900/50 border-slate-700/50">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white text-sm">Body</CardTitle>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            const rewritten = await rewriteSection(draft.body, 'Shorten this')
+                            setDraft({ ...draft, body: rewritten })
+                          }}
+                          className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
+                        >
+                          Shorten
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const rewritten = await rewriteSection(draft.body, 'Make this more personal')
+                            setDraft({ ...draft, body: rewritten })
+                          }}
+                          className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-purple-900/30 text-slate-400 hover:text-purple-300 transition-colors"
+                        >
+                          More personal
+                        </button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <textarea
+                      value={draft.body}
+                      onChange={(e) => setDraft({ ...draft, body: e.target.value })}
+                      className="w-full bg-slate-800/50 text-white rounded-lg p-4 min-h-[200px] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Your content body..."
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* CTA Section */}
+                {draft.cta && (
+                  <Card className="bg-slate-900/50 border-slate-700/50">
+                    <CardHeader>
+                      <CardTitle className="text-white text-sm">Call to Action</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <textarea
+                        value={draft.cta}
+                        onChange={(e) => setDraft({ ...draft, cta: e.target.value })}
+                        className="w-full bg-slate-800/50 text-white rounded-lg p-4 min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="Your call to action..."
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Full Caption Preview */}
+                <Card className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 border-purple-700/50">
+                  <CardHeader>
+                    <CardTitle className="text-white text-sm">Full Caption</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-slate-900/50 rounded-lg p-4">
+                      <p className="text-slate-200 whitespace-pre-wrap">
+                        {draft.caption || `${draft.hook}\n\n${draft.body}${draft.cta ? `\n\n${draft.cta}` : ''}`}
+                      </p>
+                    </div>
+                    <div className="flex gap-3 mt-4">
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            draft.caption || `${draft.hook}\n\n${draft.body}${draft.cta ? `\n\n${draft.cta}` : ''}`
+                          )
+                        }}
+                        className="flex-1 bg-slate-800 hover:bg-slate-700 text-white"
+                      >
+                        <FiCopy className="mr-2" />
+                        Copy Caption
+                      </Button>
+                      <Button
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                      >
+                        <FiSave className="mr-2" />
+                        Save to Calendar
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+
+          {/* Voice Sidebar */}
+          <div className="space-y-6">
+            {showVoicePanel && (
+              <Card className="bg-slate-900/80 border-purple-700/50 backdrop-blur sticky top-8">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-white">Voice Control</CardTitle>
+                    <button
+                      onClick={() => setShowVoicePanel(false)}
+                      className="text-slate-400 hover:text-white"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Voice Preset Name */}
+                  <div>
+                    <label className="text-sm text-slate-300 mb-2 block">Preset Name</label>
+                    <input
+                      type="text"
+                      value={voicePreset.name}
+                      onChange={(e) => setVoicePreset({ ...voicePreset, name: e.target.value })}
+                      className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  {/* Casualness Slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-slate-300">Casualness</label>
+                      <span className="text-sm text-slate-400">{voicePreset.casualness}/10</span>
+                    </div>
+                    <Slider
+                      value={[voicePreset.casualness]}
+                      onValueChange={(value) =>
+                        setVoicePreset({ ...voicePreset, casualness: value[0] })
+                      }
+                      min={1}
+                      max={10}
+                      step={1}
+                    />
+                  </div>
+
+                  {/* Boldness Slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-slate-300">Boldness</label>
+                      <span className="text-sm text-slate-400">{voicePreset.boldness}/10</span>
+                    </div>
+                    <Slider
+                      value={[voicePreset.boldness]}
+                      onValueChange={(value) =>
+                        setVoicePreset({ ...voicePreset, boldness: value[0] })
+                      }
+                      min={1}
+                      max={10}
+                      step={1}
+                    />
+                  </div>
+
+                  {/* Emoji Usage Slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-slate-300">Emoji Usage</label>
+                      <span className="text-sm text-slate-400">{voicePreset.emojiUsage}/10</span>
+                    </div>
+                    <Slider
+                      value={[voicePreset.emojiUsage]}
+                      onValueChange={(value) =>
+                        setVoicePreset({ ...voicePreset, emojiUsage: value[0] })
+                      }
+                      min={0}
+                      max={10}
+                      step={1}
+                    />
+                  </div>
+
+                  {/* Professionalism Slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-slate-300">Professionalism</label>
+                      <span className="text-sm text-slate-400">{voicePreset.professionalism}/10</span>
+                    </div>
+                    <Slider
+                      value={[voicePreset.professionalism]}
+                      onValueChange={(value) =>
+                        setVoicePreset({ ...voicePreset, professionalism: value[0] })
+                      }
+                      min={1}
+                      max={10}
+                      step={1}
+                    />
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="space-y-3 pt-4 border-t border-slate-700">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm text-slate-300">Match my past posts</span>
+                      <input
+                        type="checkbox"
+                        checked={matchMyPosts}
+                        onChange={(e) => setMatchMyPosts(e.target.checked)}
+                        className="w-4 h-4 rounded bg-slate-800 border-slate-600 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm text-slate-300">Don't sound AI-ish</span>
+                      <input
+                        type="checkbox"
+                        checked={dontSoundAI}
+                        onChange={(e) => setDontSoundAI(e.target.checked)}
+                        className="w-4 h-4 rounded bg-slate-800 border-slate-600 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Sample Preview */}
+                  <div className="bg-slate-800/50 rounded-lg p-3">
+                    <p className="text-xs text-slate-400 mb-2">Sample with current settings:</p>
+                    <p className="text-sm text-slate-300 italic">
+                      {voicePreset.casualness > 7
+                        ? "Hey! So I just discovered something crazy about my morning routine..."
+                        : voicePreset.professionalism > 7
+                        ? "Today I want to share an important insight about productivity strategies."
+                        : "Let me tell you about something I learned this week."}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Quick Stats */}
+            <Card className="bg-slate-900/50 border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white text-sm">Draft Stats</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-400">Character count</span>
+                  <span className="text-sm text-white font-medium">
+                    {(draft.caption || `${draft.hook}\n\n${draft.body}${draft.cta ? `\n\n${draft.cta}` : ''}`).length}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-400">Estimated read time</span>
+                  <span className="text-sm text-white font-medium">
+                    {Math.ceil((draft.caption || `${draft.hook}\n\n${draft.body}`).split(' ').length / 200)} min
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  // RENDER
+  return (
+    <>
+      {currentScreen === 'dashboard' && <DashboardScreen />}
+      {currentScreen === 'insight-canvas' && <InsightCanvasScreen />}
+      {currentScreen === 'idea-board' && <IdeaBoardScreen />}
+      {currentScreen === 'draft-editor' && <DraftEditorScreen />}
+    </>
   )
 }
